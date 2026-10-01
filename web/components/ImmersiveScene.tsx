@@ -227,14 +227,17 @@ function Vehicles({ vehicles }: { vehicles: Vehicle[] }) {
   const latest = useRef(vehicles);
   useEffect(() => { latest.current = vehicles; }, [vehicles]);
   const tmp = useMemo(() => ({ m: new Matrix4(), r: new Matrix4() }), []);
-  useFrame(() => {
+  useFrame(({ camera, size }) => {
     const now = Date.now();
+    const wpp = (2 * Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)) / size.height; // world m per pixel, per metre of distance
     for (const v of latest.current) {
       const g = groups.current.get(v.id);
       if (!g) continue;
       const p = project(v, now);
       WGS84_ELLIPSOID.getEastNorthUpFrame((p.lat * Math.PI) / 180, (p.lon * Math.PI) / 180, p.h, tmp.m);
-      g.matrix.copy(tmp.m.multiply(tmp.r.makeRotationZ((-v.heading_deg * Math.PI) / 180)));
+      // Keep at least ~24 px long on screen so vehicles stay visible at city scale.
+      const k = Math.max(1, (24 * wpp * camera.position.distanceTo(g.position.setFromMatrixPosition(tmp.m))) / (v.kind === "aircraft" ? 60 : 28));
+      g.matrix.copy(tmp.m.multiply(tmp.r.makeRotationZ((-v.heading_deg * Math.PI) / 180)).scale(g.scale.set(k, k, k)));
       g.matrixWorldNeedsUpdate = true;
       g.visible = true;
     }
