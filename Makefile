@@ -2,7 +2,9 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: live-up live-down live-logs soak-report migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
+# Published tiles live under lod1/$(TILE_VERSION)/ and terrain/$(TILE_VERSION)/ (immutable caching; bump on rebuild)
+TILE_VERSION ?= v1
+.PHONY: r2-version-copy live-up live-down live-logs soak-report migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
 help:
 	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
@@ -45,15 +47,15 @@ serve-terrain:
 tiles: db-up
 	uv run python -m pipelines.tiles $(MODE)
 
-# Upload only the LoD1 tiles
+# Upload only the LoD1 tiles (to lod1/$(TILE_VERSION)/)
 publish-lod1:
-	set -a; . ./.env; set +a; uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1
+	set -a; . ./.env; set +a; uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1/$(TILE_VERSION)
 
 # Upload MODE tiles + terrain to Cloudflare R2 (needs R2_* in .env)
 publish:
 	set -a; . ./.env; set +a; \
-	uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1 && \
-	uv run python -m pipelines.publish build/$(MODE)/terrain terrain
+	uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1/$(TILE_VERSION) && \
+	uv run python -m pipelines.publish build/$(MODE)/terrain terrain/$(TILE_VERSION)
 
 # ---- Phase 2 live stack (see deploy/README.md) ----
 LIVE = docker compose -f docker-compose.live.yml
@@ -81,3 +83,9 @@ migrate:
 # Import the R2 raw/ archive into the live DB (idempotent). Runs in the collectors image: no uv needed on the VM.
 backfill:
 	$(LIVE) run --rm --no-deps collectors python -m collectors.backfill
+
+# One-off: server-side copy of the unversioned P1 objects (lod1/, terrain/) into the v1 prefixes
+r2-version-copy:
+	set -a; . ./.env; set +a; \
+	uv run python -m pipelines.publish --copy lod1 lod1/$(TILE_VERSION) && \
+	uv run python -m pipelines.publish --copy terrain terrain/$(TILE_VERSION)

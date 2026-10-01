@@ -5,6 +5,12 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Live backend (Phase 2): TimescaleDB + PostGIS schema (`ref`, `ts`, `meta`), FastAPI (`/api/v1/health|stations|timeseries|now`), collectors for Open-Meteo UKMO, UK-AIR Glasgow air quality (PM2.5, NO2) and SEPA KiWIS (off until access is granted), R2 backfill and daily dump, `docker-compose.live.yml`, `make live-up`, `make soak-report`, deploy kit (`deploy/README.md`), ADR-006 and ADR-007.
+
+### Changed
+- Tiles and terrain are published under versioned R2 prefixes (`lod1/v1/`, `terrain/v1/`) so immutable caching is safe on re-uploads (`make publish`, `TILE_VERSION`).
+
 ## [0.1.1] - 2026-10-01
 
 ### Fixed
