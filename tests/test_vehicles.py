@@ -48,8 +48,44 @@ def test_vehicles_subway_contract(client):
     )
 
 
-def test_vehicles_aircraft_empty_until_poller_and_bad_kind_rejected(client):
-    assert client.get("/api/v1/vehicles?kind=aircraft").json()["features"] == []
+def seed_aircraft(conn):
+    now = datetime.now(UTC)
+    for hex_, ago, h in (("406c72", 120, 300.0), ("406c72", 60, 150.0), ("4cada3", 600, 9000.0)):
+        conn.execute(
+            """insert into ts.aircraft_positions (hex, t, lon, lat, h_ellip_m, h_src, callsign, heading_deg, speed_ms)
+               values (%s, %s, -4.4, 55.9, %s, 'geom', 'EZY653E', 226.5, 67.3)""",
+            (hex_, now - timedelta(seconds=ago), h),
+        )
+    conn.commit()
+    return now
+
+
+def test_vehicles_aircraft_latest_fix_only_and_stale_dropped(client, conn):
+    seed_aircraft(conn)
+    fc = client.get("/api/v1/vehicles?kind=aircraft").json()
+    assert [f["properties"]["id"] for f in fc["features"]] == [
+        "406c72"
+    ]  # 4cada3 last heard 10 min ago
+    f = fc["features"][0]
+    assert f["geometry"]["coordinates"] == [-4.4, 55.9, 150.0]
+    assert f["properties"]["mode"] == "live" and f["properties"]["label"] == "EZY653E"
+    both = client.get("/api/v1/vehicles").json()["features"]
+    assert {f["properties"]["kind"] for f in both} >= {"aircraft"}
+    conn.execute("truncate ts.aircraft_positions")
+    conn.commit()
+
+
+def test_tracks_aircraft(client, conn):
+    now = seed_aircraft(conn)
+    q = {"kind": "aircraft", "from": (now - timedelta(hours=1)).isoformat(), "to": now.isoformat()}
+    tr = client.get("/api/v1/tracks", params=q).json()
+    assert [p[3] for p in tr["406c72"]] == [300.0, 150.0] and tr["406c72"][0][0].endswith("Z")
+    assert len(tr["4cada3"]) == 1
+    conn.execute("truncate ts.aircraft_positions")
+    conn.commit()
+
+
+def test_bad_kind_rejected(client):
     assert client.get("/api/v1/vehicles?kind=bus").status_code == 422
 
 
