@@ -5,6 +5,11 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-01
+
+### Fixed
+- `/immersive`: sun shadows now follow the camera and scale with the view, so every visible building casts a shadow (previously a fixed ±700 m box around George Square).
+
 ## [0.1.0] - 2026-10-01 — "Glasgow in 3D"
 
 ### Added
