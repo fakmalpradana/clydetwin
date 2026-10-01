@@ -2,9 +2,9 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: help setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain
+.PHONY: help setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish
 help:
-	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain  (lod1/serve-tiles take MODE=sample|aoi)"
+	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
 setup:
 	uv sync
@@ -40,3 +40,9 @@ serve-tiles:
 # Serve terrain at http://localhost:8083/layer.json (adds the Content-Encoding header the gzipped tiles need)
 serve-terrain:
 	uv run python -m pipelines.serve_terrain $(MODE) 8083
+
+# Upload MODE tiles + terrain to Cloudflare R2 (needs R2_* in .env)
+publish:
+	set -a; . ./.env; set +a; \
+	uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1 && \
+	uv run python -m pipelines.publish build/$(MODE)/terrain terrain
