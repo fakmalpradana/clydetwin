@@ -144,7 +144,7 @@ collectors/  reserved for the Phase 2 data collectors
 | `make terrain [MODE=...]` | own quantized-mesh terrain from the DTM, with a check |
 | `make serve-tiles [MODE=... PORT=...]` | serve tiles over HTTP with CORS |
 | `make serve-terrain [MODE=...]` | serve terrain with the gzip header it needs |
-| `make publish [MODE=...]` | upload tiles and terrain to Cloudflare R2 (needs `R2_*` in `.env`) |
+| `make publish [MODE=...]` | upload tiles and terrain to Cloudflare R2 under `lod1/v1/` and `terrain/v1/` (`TILE_VERSION`; needs `R2_*` in `.env`) |
 
 Web: `cd web && npm run dev | build | lint | test`.
 

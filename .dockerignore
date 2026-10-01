@@ -1,0 +1,8 @@
+.git
+.venv
+.env
+data
+build
+web
+docs
+tests

@@ -20,3 +20,19 @@ Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`)
 | 1.11 | `/immersive` v0.1 (R3F, 3d-tiles-renderer, takram atmosphere); ADR-004 | done (full city, own terrain, 60 fps headless; real-GPU fps pending) |
 | 1.10b | Basemap switcher (Carto, Esri, OSM, Google via Map Tiles API) in `/explore` and `/immersive` | done (Google path untested, no key) |
 | 1.14 | README to the ROADMAP standard, media, CITATION | done (production URL and release badge pending the gate) |
+
+## Phase 2: Glasgow Now
+
+Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). Brief: `docs/phases/P2.md`.
+
+| Task | Description | Status |
+|---|---|---|
+| A1 | `docker-compose.live.yml`: TimescaleDB+PostGIS, api, collectors, Caddy (db verified; api/collectors land in A4/A6) | done |
+| A2 | Migrations: `db/migrations/*.sql` (ref, ts hypertable + compression, meta), `make migrate` runner, DB test fixtures, CI service container | done |
+| A3 | `collectors/common.py`: backoff, pydantic validation, idempotent upsert, `meta.ingest_runs`, Healthchecks ping | done |
+| A4 | Collectors: `weather` (Open-Meteo UKMO 3x3), `air_quality` (UK-AIR SOS API, ADR-007), `sepa` (KiWIS, 429-safe, off by default), scheduler `python -m collectors` | done (weather and air verified live; SEPA by fixtures only) |
+| A5 | `make backfill` (R2 `raw/` NDJSON into the DB, idempotent) and a daily DB dump to R2 `dump/observations/` from the collectors container | done (backfill run against real R2: 2 objects, 63 new rows, second run 0) |
+| A6 | FastAPI `api/main.py` implementing the P2 contract (health, stations, timeseries, now) + pytest against a seeded TimescaleDB; `make live-up` runs db+api+collectors locally (Caddy only when DOMAIN is set) | done (verified against the live local stack) |
+| A8 | `make soak-report [HOURS=72]`: per-source runs/gaps > 2x interval, last errors, series gaps, row counts (for the local 72 h soak) | done |
+| A7 | Deploy kit `deploy/README.md` (local-first, then exact Hetzner CX22 steps, monitoring); ADR-006 (VM vs serverless); `make backfill` runs in the container | done (docs only, nothing provisioned) |
+| A9 | Versioned tile paths: `make publish` writes `lod1/v1/` and `terrain/v1/` (`TILE_VERSION`); existing objects copied server-side in R2 (556 + 88,750, headers kept); old unversioned keys left in place | done (web switches URL) |

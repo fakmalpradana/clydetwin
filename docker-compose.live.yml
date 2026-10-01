@@ -1,0 +1,66 @@
+# Live stack (Phase 2): TimescaleDB+PostGIS, API, collectors, Caddy (TLS). Run with `make live-up`.
+# Separate from docker-compose.yml, which is only the tile-build DB (port 5433).
+x-app: &app
+  build: .
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    # overrides any host-side DATABASE_URL from .env (which points at localhost)
+    DATABASE_URL: postgresql://clydetwin:${LIVE_DB_PASSWORD:?set LIVE_DB_PASSWORD in .env}@db:5432/clydetwin
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clydetwin
+      POSTGRES_PASSWORD: ${LIVE_DB_PASSWORD:?set LIVE_DB_PASSWORD in .env}
+      POSTGRES_DB: clydetwin
+    ports:
+      - "127.0.0.1:${LIVE_DB_PORT:-5434}:5432"
+    volumes:
+      - tsdata:/home/postgres/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clydetwin -d clydetwin"]
+      interval: 3s
+      retries: 30
+
+  api:
+    <<: *app
+    command: sh -c "python -m db.migrate && uvicorn api.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      start_period: 20s
+      retries: 6
+
+  collectors:
+    <<: *app
+    command: python -m collectors
+    depends_on:
+      api:
+        condition: service_healthy # api runs the migrations first
+
+  caddy: # public TLS front; only with DOMAIN set to a real hostname (make live-up adds the profile)
+    profiles: ["edge"]
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+
+volumes:
+  tsdata:
+  caddy_data:
