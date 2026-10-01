@@ -188,7 +188,7 @@ def now_summary(conn: Conn):
     return {"weather": weather, "rivers": rivers, "air": air}
 
 
-# ---- Phase 3: moving city (docs/phases/P3.md). Aircraft stay empty until the adsb.lol poller (A2) exists. ----
+# ---- Phase 3: moving city (docs/phases/P3.md) ----
 
 TRACK_STEP_S = 30
 MAX_WINDOW = timedelta(hours=24)
@@ -201,9 +201,38 @@ def subway_loops(conn) -> dict:
     return _loops
 
 
+FIX_MAX_AGE_S = 180  # an aircraft not heard from for 3 min is no longer shown
+
+
+def aircraft_features(conn, at: datetime) -> list[dict]:
+    rows = conn.execute(
+        """select distinct on (hex) hex, t, lon, lat, h_ellip_m, callsign, heading_deg, speed_ms
+           from ts.aircraft_positions where t <= %s and t > %s order by hex, t desc""",
+        (at, at - timedelta(seconds=FIX_MAX_AGE_S)),
+    ).fetchall()
+    return [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [r["lon"], r["lat"], r["h_ellip_m"]]},
+            "properties": {
+                "id": r["hex"],
+                "kind": "aircraft",
+                "label": r["callsign"] or r["hex"],
+                "mode": "live",
+                "heading_deg": r["heading_deg"],
+                "speed_ms": r["speed_ms"],
+                "t": iso(r["t"]),
+            },
+        }
+        for r in rows
+    ]
+
+
 def vehicle_features(conn, kind: str | None, at: datetime) -> list[dict]:
-    """Aircraft: none yet. Subway: simulated positions at `at`."""
-    return subway.positions(subway_loops(conn), at) if kind in (None, "subway") else []
+    """Aircraft from ts.aircraft_positions (live); subway from the simulation at `at`."""
+    return (aircraft_features(conn, at) if kind in (None, "aircraft") else []) + (
+        subway.positions(subway_loops(conn), at) if kind in (None, "subway") else []
+    )
 
 
 Kind = Annotated[str | None, Query(pattern="^(aircraft|subway)$")]
@@ -224,11 +253,18 @@ def tracks(
     to: datetime,
 ):
     """{id: [[t, lon, lat, h], ...]} with `t` as ISO 8601 UTC. Window capped at 24 h. Subway is the simulation
-    sampled every 30 s (the same function as /vehicles); aircraft tracks come from ts.aircraft_positions (A2)."""
+    sampled every 30 s (the same function as /vehicles); aircraft tracks are the stored fixes (about one a minute)."""
     if not timedelta(0) < to - from_ <= MAX_WINDOW:
         raise HTTPException(422, "window must be positive and at most 24 h")
     out: dict[str, list] = {}
-    if kind == "subway":
+    if kind == "aircraft":
+        for r in conn.execute(
+            """select hex, t, lon, lat, h_ellip_m from ts.aircraft_positions
+               where t >= %s and t <= %s order by hex, t""",
+            (from_, to),
+        ):
+            out.setdefault(r["hex"], []).append([iso(r["t"]), r["lon"], r["lat"], r["h_ellip_m"]])
+    else:
         loops = subway_loops(conn)
         t = from_
         while t <= to:
