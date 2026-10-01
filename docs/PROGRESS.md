@@ -51,3 +51,13 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B7b | Gate fix: air source wording is UK-AIR (Defra) on /live, ticker tooltips and /about/data, licence pending confirmation | done |
 | B7c | Gate fix: pollutant values rounded to 1 decimal on /live and the ticker | done |
 | B7d | Gate fix: explicit "River data unavailable (SEPA access pending)" on /live and the ticker when there are no river stations | done |
+
+## Phase 3: Moving City (web workstream, branch `p3/web`)
+
+| Task | Description | Status |
+|---|---|---|
+| B1 | `web/lib/vehicles.ts`: typed client for `/vehicles` and `/tracks`, dead-reckoning and track interpolation, SSE hook, generated sample data in fixture mode (aircraft on the EGPF runway 23 approach, 4 subway trains), all labelled simulated | done |
+| B2 | `/explore` mobility layer: heading-aligned markers, live/scheduled/simulated badge, click to follow, 24 h replay slider | todo |
+| B3 | `/immersive` aircraft and subway trains | todo |
+| B4 | `/about/data` attributions (adsb.lol, OSM, NaPTAN, SPT) and "coming soon" sources | todo |
+| B5 | vitest for interpolation and fixture parsing | todo |
