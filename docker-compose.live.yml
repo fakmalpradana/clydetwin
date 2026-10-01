@@ -33,15 +33,21 @@ services:
     command: sh -c "python -m db.migrate && uvicorn api.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
     ports:
       - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      start_period: 20s
+      retries: 6
 
   collectors:
     <<: *app
     command: python -m collectors
     depends_on:
       api:
-        condition: service_started # api runs the migrations first
+        condition: service_healthy # api runs the migrations first
 
-  caddy:
+  caddy: # public TLS front; only with DOMAIN set to a real hostname (make live-up adds the profile)
+    profiles: ["edge"]
     image: caddy:2
     restart: unless-stopped
     ports:

@@ -58,13 +58,13 @@ publish:
 # ---- Phase 2 live stack (see deploy/README.md) ----
 LIVE = docker compose -f docker-compose.live.yml
 
-# db + api (runs migrations) + collectors + caddy
+# db + api (runs migrations) + collectors; + Caddy/TLS when DOMAIN in .env is not localhost
 live-up:
-	$(LIVE) up -d --build --wait db api
-	$(LIVE) up -d --build
+	set -a; . ./.env; set +a; \
+	$(LIVE) $$([ "$${DOMAIN:-localhost}" != localhost ] && echo --profile edge) up -d --build --wait
 
 live-down:
-	$(LIVE) down
+	$(LIVE) --profile edge down
 
 live-logs:
 	$(LIVE) logs -f --tail=100 api collectors
