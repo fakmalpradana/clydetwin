@@ -74,5 +74,4 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B3 | `/immersive` aircraft and Subway trains as mode-coloured primitives (no CC0 glTF used; billboards/primitives per brief), dead-reckoned every frame from `lib/vehicles`, mode legend and SAMPLE DATA label | done (lint, tsc pass; browser check pending) |
 | B4 | `/about/data`: adsb.lol and OSM (ODbL), NaPTAN (OGL), SPT headway, SAMPLE DATA note, mode badge explainer; bus, rail, traffic and car parks marked coming soon | done |
 | B5 | vitest `lib/vehicles.test.ts` (13 tests): dead reckoning, track interpolation, timestamp units, parsing, fixture determinism, glide-slope heights, contract shape; web total 37 | done |
-
 | B8 | Gate fix vs the real API: heading and speed are nullable (taxiing aircraft crashed Cesium with "degrees is required"): no rotation when heading is null, no dead reckoning without both; vitest added. Replay takes Subway from `/tracks?kind=subway`; the client sim is fixture-only. Verified on localhost:3000 against the live stack, 0 console errors | done |
