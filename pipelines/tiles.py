@@ -12,6 +12,7 @@ import subprocess
 
 from . import config
 
+MIN_COMPLETENESS = 0.98  # Gate P1: >= 98% of footprints must be in the tileset
 ATTRS = "building_id,height,h_max,ground_z_odn,ground_z_ellip,area_m2,height_source,lidar_year"
 DB = {
     "user": os.environ.get("POSTGRES_USER", "clydetwin"),
@@ -74,6 +75,10 @@ def load_db(mode: str) -> int:
     n_src = int(_psql("SELECT count(*) FROM buildings_src"))
     n_out = int(_psql("SELECT count(*) FROM lod1"))
     print(f"lod1 rows: {n_out} / {n_src} footprints ({n_out / n_src:.2%})")
+    if n_out < MIN_COMPLETENESS * n_src:
+        raise RuntimeError(
+            f"only {n_out}/{n_src} buildings reached the tileset (< {MIN_COMPLETENESS:.0%})"
+        )
     return n_out
 
 

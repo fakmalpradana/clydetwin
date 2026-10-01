@@ -28,7 +28,15 @@ def build(mode: str, cfg: dict | None = None) -> gpd.GeoDataFrame:
     g = g.assign(geometry=shapely.force_2d(g.geometry.values))  # source polygons carry Z = 0
     g = g[~g.geometry.is_empty & g.geometry.notna()]
     g["geometry"] = shapely.make_valid(g.geometry.values)
-    g = g.rename(columns={"ID": "building_id"})[["building_id", "geometry"]].reset_index(drop=True)
+    g = g.rename(columns={"ID": "building_id"})[["building_id", "geometry"]]
+    # MultiPolygons (also from make_valid) become one row per part; parts get a "-n" id suffix
+    g = g.explode(index_parts=True)
+    g["part"] = g.index.get_level_values(1)
+    g = g.reset_index(drop=True)
+    multi = g.duplicated("building_id", keep=False)
+    g.loc[multi, "building_id"] += "-" + g.loc[multi, "part"].astype(str)
+    g = g.drop(columns="part")
+    g = g[g.geom_type == "Polygon"]  # drops stray lines/points that make_valid can leave behind
     assert g.building_id.is_unique
     g = g.set_crs(cfg["crs"], allow_override=True)
     out = config.build_dir(mode) / "footprints.gpkg"

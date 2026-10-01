@@ -17,6 +17,9 @@ def run(mode: str) -> dict:
     rasters.run(mode, cfg)
     footprints.build(mode, cfg)
     h = heights.compute(mode, cfg)
+    n_fp = len(h) + h.attrs["dropped_no_dtm"]
+    if len(h) < tiles.MIN_COMPLETENESS * n_fp:
+        raise RuntimeError(f"{h.attrs['dropped_no_dtm']} of {n_fp} footprints have no DTM pixel")
     h.to_file(config.build_dir(mode) / "heights.gpkg", driver="GPKG", layer="buildings")
     n_out = tiles.run(mode)
     size = sum(
@@ -24,7 +27,7 @@ def run(mode: str) -> dict:
     )
     stats = {
         "mode": mode,
-        "footprints": len(h) + h.attrs["dropped_no_dtm"],
+        "footprints": n_fp,
         "dropped_no_dtm": h.attrs["dropped_no_dtm"],
         "in_tileset": n_out,
         "pct_default": round(100 * float((h.height_source == "default").mean()), 2),
