@@ -44,12 +44,16 @@ Verified with a real Cesium ion token (sample tileset, 5 hand-picked points plus
   throw. Terrain renders with a neutral material.
 - Both viewers see the same terrain: at five points the three.js raycast (terrain mesh) and Cesium
   `sampleTerrainMostDetailed` agree within 0.3 m (80.5/80.5, 91.5/91.5, 78.6/78.6, 92.2/92.1, 85.7/85.4 m ellipsoidal).
-- **Buildings do not sit on terrain.** `ground_z_ellip` is below the terrain by 4 to 26 m (median about 14.5 m, 43 of
-  45 buildings sunk by more than 2 m) in both viewers, so footprints are partly buried. An independent DEM
-  (Open-Meteo / Copernicus, orthometric) agrees with Cesium terrain to a few metres (27, 34, 28, 33 m ODN against
-  Cesium minus a 54 m geoid of 26.5, 37.5, 24.6, 38 m), so the fault is in the tileset's ground heights, not in the
-  renderers. This is a pipeline issue (`ground_z_odn`/`ground_z_ellip`, task 1.6/1.7), escalated rather than
-  compensated for with a renderer offset.
+- **Buildings do not sit on Cesium World Terrain, and the terrain is the part that is wrong.** `ground_z_ellip` is
+  below ion terrain by 4 to 26 m (median about 14.5 m) in both viewers. This was first read as a pipeline fault;
+  that reading is **corrected** (see ADR-002): the raw Phase 5 DTM gives 11.6 m ODN at George Square and -1.2 m ODN
+  at the Clyde (Glasgow Bridge), `ground_z_ellip` = ODN + OSGM15 geoid (about 54.1 m here) is verified against the 29
+  official OS vectors to 2 mm, and our own terrain built from that DTM agrees with `ground_z_ellip` within 0.3 m at
+  five buildings (read back from the generated tiles). Cesium World Terrain is simply about 14 m too high in
+  central Glasgow. The earlier comparison with Open-Meteo/Copernicus was not independent evidence: that product is a
+  30 m surface model (roofs and trees included) on a different vertical datum, so "agreeing" with ion says nothing
+  about ground level in a dense city. The cause inside ion's terrain was not investigated. No renderer offset is
+  needed; the viewers switch to our terrain (`make terrain`).
 - Without a token (flat ground at `FLAT_GROUND_M` = 60 m, Cesium via a constant `CustomHeightmapTerrainProvider`,
   three.js via a tangent disc) the fallback is unchanged and was verified before the token existed.
 - GlobeControls lifted the initial camera from 380 m to 433 m ellipsoidal once terrain loaded, so the first
