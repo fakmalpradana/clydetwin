@@ -247,6 +247,11 @@ def main(argv=None) -> int:
         action="store_true",
         help="re-query KiWIS for the station cache and exit",
     )
+    ap.add_argument(
+        "--sources",
+        default=os.environ.get("ARCHIVE_SOURCES", "sepa_kiwis,open_meteo_ukmo"),
+        help="comma-separated sources to archive (env ARCHIVE_SOURCES)",
+    )
     a = ap.parse_args(argv)
     if a.refresh_stations:
         d = refresh_stations()
@@ -256,7 +261,9 @@ def main(argv=None) -> int:
     now = now.replace(minute=now.minute - now.minute % 15)
     failed = 0
     s3 = None if a.dry_run else s3_client()
-    for source, fn in (("sepa_kiwis", collect_sepa), ("open_meteo_ukmo", collect_open_meteo)):
+    collectors = {"sepa_kiwis": collect_sepa, "open_meteo_ukmo": collect_open_meteo}
+    for source in a.sources.split(","):
+        fn = collectors[source]
         try:
             recs = fn()
             if not recs:
