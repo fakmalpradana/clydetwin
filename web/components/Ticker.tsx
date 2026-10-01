@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { FIXTURE, ageLabel, isStale, type Now } from "@/lib/api";
+import { FIXTURE, POLLUTANT_LABEL, airPollutant, r1, ageLabel, isStale, type Now } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 
 /** Bottom strip from /now: river levels and air quality at a glance. */
@@ -15,15 +15,17 @@ export default function Ticker({ now, tick }: { now: Now | null; tick: number })
         <span className="hidden font-mono text-muted sm:inline">cloud {w.cloud_low}/{w.cloud_mid}/{w.cloud_high}%</span>
         {wStale && <span className="rounded bg-red-400/20 px-1 text-red-200">stale</span>}
       </span>
+      {now.rivers.length === 0 && <span className="text-muted">River data unavailable (SEPA access pending)</span>}
       {now.rivers.map((r) => (
         <span key={r.id} className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLOR[r.status] }} />
           {r.name.replace("River ", "").replace(" at ", " @ ")} <b className="font-mono">{r.value} {r.unit}</b>
         </span>
       ))}
-      {now.air.map((a) => (
-        <span key={a.id} className="text-muted">PM2.5 {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{a.pm25}</b></span>
-      ))}
+      {now.air.map((a) => {
+        const p = airPollutant(a);
+        return p && <span key={a.id} className="text-muted" title={`UK-AIR (Defra), provisional, ${ageLabel(a.t, tick)}`}>{POLLUTANT_LABEL[p]} {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{r1(a[p]!)}</b></span>;
+      })}
       <span className="text-muted">updated {ageLabel(t, tick)}</span>
     </div>
   );

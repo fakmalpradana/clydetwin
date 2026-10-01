@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { ageLabel, effectiveStatus, FIXTURE, FIXTURE_REF, getNow, getStations, getTimeseries, isStale, rebase } from "./api";
+import { ageLabel, effectiveStatus, FIXTURE, FIXTURE_REF, getNow, getStations, getTimeseries, isStale, rebase, airPollutant, r1 } from "./api";
 
 const T0 = Date.parse("2026-03-01T12:00:00Z");
 const ago = (s: number) => new Date(T0 - s * 1000).toISOString();
@@ -26,6 +26,15 @@ describe("stale detection", () => {
     expect(ageLabel(ago(20), T0)).toBe("just now");
     expect(ageLabel(ago(600), T0)).toBe("10 min ago");
     expect(ageLabel(ago(3 * 3600), T0)).toBe("3 h ago");
+  });
+});
+
+describe("air pollutant choice", () => {
+  it("rounds to one decimal", () => expect([r1(8.033), r1(13.579), r1(6)]).toEqual([8, 13.6, 6]));
+  it("prefers PM2.5, falls back to NO2, else none", () => {
+    expect(airPollutant({ pm25: 6, no2: 11 })).toBe("pm25");
+    expect(airPollutant({ pm25: null, no2: 8 })).toBe("no2");
+    expect(airPollutant({ pm25: null, no2: null })).toBeNull();
   });
 });
 
