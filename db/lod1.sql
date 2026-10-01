@@ -30,8 +30,9 @@ WITH b AS (
 )
 SELECT b.building_id, b.height, b.h_max, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
        b.height_source, b.lidar_year,
-       ST_SetSRID(ST_Collect(ARRAY(
-         SELECT face FROM walls w WHERE w.building_id = b.building_id
-         UNION ALL SELECT face FROM roofs r WHERE r.building_id = b.building_id)), 4326) AS geom
-FROM b;
+       ST_SetSRID(ST_Collect(f.face), 4326) AS geom
+FROM b
+JOIN (SELECT * FROM walls UNION ALL SELECT * FROM roofs) f USING (building_id)
+GROUP BY b.building_id, b.height, b.h_max, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
+         b.height_source, b.lidar_year;
 CREATE INDEX ON lod1 USING gist (geom);

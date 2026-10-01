@@ -25,3 +25,15 @@ Weather data by Open-Meteo.com (CC BY 4.0), source: UK Met Office.
 - Public footprints come only from OS OpenMap Local; heights only from Scottish LiDAR (OGL).
 - OS NGD and Digimap (EDINA) data are used for internal validation only, never published.
 - Exact LiDAR phase credits are finalised in `docs/data-verification.md`.
+
+## LiDAR actually used (Phase 1)
+
+Scottish LiDAR Phase 5 (DSM, DTM), flown 2020-05-28 to 2021-04-12, Open Government Licence v3. Required wording
+from the dataset metadata:
+
+```
+LiDAR: Crown copyright Scottish Government and Fugro (2020). Open Government Licence v3.
+```
+
+The generic LiDAR line above (SEPA / Scottish Water / Bluesky) covers other Scottish LiDAR phases and is not
+needed for the published Glasgow tiles; `/about/data` should show the Phase 5 line.
