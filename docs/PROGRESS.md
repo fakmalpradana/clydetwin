@@ -13,4 +13,4 @@ Pipeline workstream A (branch `p1/pipeline`). Status: todo / doing / done.
 | 1.5 | Footprints | done |
 | 1.6 | Heights (exactextract) | done |
 | 1.7 | Vertical datum (ODN to ellipsoid) | done |
-| 1.8 | 3D Tiles | todo |
+| 1.8 | 3D Tiles | done (sample) |
