@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FIXTURE, ageLabel, effectiveStatus, getNow, getStations, getTimeseries, type Kind, type Now, type StationFeature, type Timeseries } from "@/lib/api";
+import { FIXTURE, ageLabel, effectiveStatus, getNow, getStations, getTimeseries, airPollutant, POLLUTANT_LABEL, type Kind, type Pollutant, type Now, type StationFeature, type Timeseries } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import Sparkline from "./Sparkline";
 
@@ -11,7 +11,7 @@ const TITLES: Record<Kind, { title: string; note: string }> = {
   weather: { title: "Weather", note: "Model forecast (Open-Meteo, UK Met Office UKV), not a station measurement." },
   river_level: { title: "River levels", note: "SEPA gauge readings. Provisional data, may be revised; not a flood warning." },
   rainfall: { title: "Rainfall", note: "SEPA rain gauge, 15-minute totals. Provisional." },
-  air_quality: { title: "Air quality", note: "Scottish Air Quality Database, provisional and not ratified; PM2.5 shown." },
+  air_quality: { title: "Air quality", note: "PM2.5 where the site measures it, otherwise NO₂; each card names the pollutant shown." },
 };
 
 function Chip({ status }: { status: string }) {
@@ -23,12 +23,12 @@ function Chip({ status }: { status: string }) {
   );
 }
 
-function Station({ f, series, now }: { f: StationFeature; series?: Timeseries; now: number }) {
+function Station({ f, series, now, pollutant }: { f: StationFeature; series?: Timeseries; now: number; pollutant?: Pollutant }) {
   const p = f.properties, st = effectiveStatus(p, now);
   return (
     <li className="py-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium">{p.name}</h3>
+        <h3 className="text-sm font-medium">{p.name}{pollutant && <span className="ml-2 font-mono text-xs text-muted">{POLLUTANT_LABEL[pollutant]}</span>}</h3>
         <Chip status={st} />
       </div>
       <p className="mt-1 font-mono text-2xl">
@@ -55,7 +55,9 @@ export default function Live() {
         if (!alive) return;
         setStations(s.features); setNowData(n); setError(null); setTick(Date.now());
         for (const f of s.features) {
-          getTimeseries(f.properties.id, 24).then((t) => alive && setSeries((o) => ({ ...o, [f.properties.id]: t })), () => {});
+          const a = n.air.find((x) => x.id === f.properties.id);
+          const param = f.properties.kind === "air_quality" && a ? airPollutant(a) ?? undefined : undefined;
+          getTimeseries(f.properties.id, 24, param).then((t) => alive && setSeries((o) => ({ ...o, [f.properties.id]: t })), () => {});
         }
       } catch (e) {
         if (alive) setError((e as Error).message);
@@ -66,6 +68,7 @@ export default function Live() {
     return () => { alive = false; clearInterval(h); };
   }, []);
 
+  const airOf = (id: string) => { const a = nowData?.air.find((x) => x.id === id); return a ? airPollutant(a) ?? undefined : undefined; };
   const groups = (Object.keys(TITLES) as Kind[]).map((k) => [k, (stations ?? []).filter((f) => f.properties.kind === k)] as const).filter(([, l]) => l.length);
   const newest = Math.max(0, ...(stations ?? []).map((f) => (f.properties.latest ? Date.parse(f.properties.latest.t) : 0)));
   const staleCount = (stations ?? []).filter((f) => effectiveStatus(f.properties, tick) === "stale").length;
@@ -102,7 +105,7 @@ export default function Live() {
             <h2 className="text-lg font-semibold">{TITLES[k].title}</h2>
             <p className="mt-1 text-xs text-muted">{TITLES[k].note}</p>
             <ul className="mt-2 divide-y divide-line">
-              {list.map((f) => <Station key={f.properties.id} f={f} series={series[f.properties.id]} now={tick} />)}
+              {list.map((f) => <Station key={f.properties.id} f={f} series={series[f.properties.id]} now={tick} pollutant={k === "air_quality" ? airOf(f.properties.id) : undefined} />)}
             </ul>
           </section>
         ))}

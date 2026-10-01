@@ -28,7 +28,7 @@ export interface Timeseries { id: string; unit: string; points: [string, number]
 export interface Now {
   weather: { temp_c: number; wind_ms: number; precip_mm: number; cloud_low: number; cloud_mid: number; cloud_high: number; t: string };
   rivers: { id: string; name: string; value: number; unit: string; status: Status; t: string }[];
-  air: { id: string; name: string; pm25: number; no2: number; t: string }[];
+  air: { id: string; name: string; pm25: number | null; no2: number | null; t: string }[];
 }
 export interface Health {
   status: string;
@@ -76,8 +76,12 @@ async function get<T>(path: string, fixture: () => Promise<T>): Promise<T> {
 export const getStations = () => get<Stations>("/stations", async () => (await import("./fixtures/stations.json")).default as Stations);
 export const getNow = () => get<Now>("/now", async () => (await import("./fixtures/now.json")).default as Now);
 export const getHealth = () => get<Health>("/health", async () => (await import("./fixtures/health.json")).default as Health);
-export const getTimeseries = (id: string, hours = 24) =>
-  get<Timeseries>(`/timeseries/${encodeURIComponent(id)}?hours=${Math.min(hours, 168)}`, async () => {
+export type Pollutant = "pm25" | "no2";
+export const POLLUTANT_LABEL: Record<Pollutant, string> = { pm25: "PM2.5", no2: "NO₂" };
+/** The pollutant to show for a site: PM2.5 when it has it, else NO2 (either may be null in /now.air). */
+export const airPollutant = (a: Pick<Now["air"][number], "pm25" | "no2">): Pollutant | null => (a.pm25 != null ? "pm25" : a.no2 != null ? "no2" : null);
+export const getTimeseries = (id: string, hours = 24, param?: Pollutant) =>
+  get<Timeseries>(`/timeseries/${encodeURIComponent(id)}?hours=${Math.min(hours, 168)}${param ? `&param=${param}` : ""}`, async () => {
     const all = (await import("./fixtures/timeseries.json")).default as unknown as Record<string, Timeseries>;
     if (!all[id]) throw new Error(`no fixture for ${id}`);
     return all[id];
