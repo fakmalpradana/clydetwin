@@ -37,10 +37,10 @@ export const availableBasemaps = (): Basemap[] => BASEMAPS.filter((b) => !b.goog
 
 export const getBasemap = (id: BasemapId): Basemap => BASEMAPS.find((b) => b.id === id) ?? BASEMAPS[0];
 
-export function parseBasemap(params: URLSearchParams | string): BasemapId {
+export function parseBasemap(params: URLSearchParams | string, fallback: BasemapId = DEFAULT_BASEMAP): BasemapId {
   const q = typeof params === "string" ? new URLSearchParams(params) : params;
   const id = q.get("bm");
-  return availableBasemaps().some((b) => b.id === id) ? (id as BasemapId) : DEFAULT_BASEMAP;
+  return availableBasemaps().some((b) => b.id === id) ? (id as BasemapId) : fallback;
 }
 
 // --- Google Map Tiles API (official 2D tiles only: createSession, then tiles with session + key) ---

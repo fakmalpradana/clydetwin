@@ -4,18 +4,19 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { carry, cameraQuery, paramsToCamera, setParam, type CameraState } from "@/lib/camera";
+import { IMMERSIVE_CAMERA, carry, cameraQuery, paramsToCamera, setParam, type CameraState } from "@/lib/camera";
 import { parseBasemap, type BasemapId } from "@/lib/basemap";
 import Attribution from "./Attribution";
 import BasemapPicker from "./BasemapPicker";
-import { sceneDate } from "@/lib/time";
+import { sceneTime } from "@/lib/time";
 
 const Scene = dynamic(() => import("./ImmersiveScene"), { ssr: false });
 
 export default function Immersive() {
   const router = useRouter();
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
-  const [bm, setBm] = useState<BasemapId>("dark");
+  const [bm, setBm] = useState<BasemapId>("esri");
+  const [illustrative, setIllustrative] = useState(false);
   const latest = useRef<CameraState | null>(null);
   const [cam, setCam] = useState<CameraState | null>(null);
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function Immersive() {
     let cancelled = false;
     (async () => {
       const q = new URLSearchParams(window.location.search);
-      const initial = paramsToCamera(q);
+      const initial = paramsToCamera(q, IMMERSIVE_CAMERA);
       // Weak GPUs and phones get the lighter Explore map (with a way back in).
       if (q.get("force") !== "1") {
         const { getGPUTier } = await import("detect-gpu");
@@ -39,8 +40,10 @@ export default function Immersive() {
         }
       }
       latest.current = initial;
-      setBm(parseBasemap(q));
-      setState({ initial, date: sceneDate(q) });
+      setBm(parseBasemap(q, "esri"));
+      const time = sceneTime(q, true);
+      setIllustrative(time.illustrative);
+      setState({ initial, date: time.date });
     })();
     return () => {
       cancelled = true;
@@ -76,6 +79,11 @@ export default function Immersive() {
           }}
         />
       </aside>
+      {illustrative && (
+        <p className="absolute right-4 top-14 z-10 rounded bg-bg/60 px-2 py-1 text-[11px] text-muted backdrop-blur">
+          Sun: illustrative (it is night in Glasgow)
+        </p>
+      )}
       <Attribution id={bm} cam={cam} className="absolute bottom-8 right-2 z-10 max-w-[60%]" />
       <footer className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-bg/60 px-4 py-1.5 text-[11px] text-muted backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. OGL v3.0. LiDAR: Scottish Government and Fugro.{" "}

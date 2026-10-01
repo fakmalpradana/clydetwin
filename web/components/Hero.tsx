@@ -2,17 +2,21 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { GEORGE_SQUARE } from "@/lib/tileset";
+import { sceneTime } from "@/lib/time";
 
 /** Full-bleed auto-orbiting 3D backdrop for the landing page. */
-export default function Hero() {
+export default function Hero({ onIllustrative }: { onIllustrative?: (v: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let disposed = false;
     let destroy = () => {};
     (async () => {
       const { createViewer, loadBuildings, Cesium } = await import("@/lib/cesium");
+      // Never open on a black night scene: below the horizon use an illustrative afternoon sun and say so.
+      const time = sceneTime(new URLSearchParams(window.location.search), true);
+      onIllustrative?.(time.illustrative);
       if (disposed || !ref.current) return;
-      const { viewer } = await createViewer(ref.current, { interactive: false });
+      const { viewer } = await createViewer(ref.current, { interactive: false, date: time.date, basemap: "esri" });
       if (disposed) return viewer.destroy();
       destroy = () => viewer.destroy();
       await loadBuildings(viewer).catch((e) => console.warn("tileset unavailable", e));
@@ -22,7 +26,7 @@ export default function Hero() {
         heading += 0.0012;
         viewer.camera.lookAt(
           target,
-          new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(-24), 650),
+          new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(-11), 1100),
         );
       });
     })();
@@ -30,6 +34,6 @@ export default function Hero() {
       disposed = true;
       destroy();
     };
-  }, []);
+  }, [onIllustrative]);
   return <div ref={ref} className="absolute inset-0 [&_.cesium-viewer-bottom]:!opacity-60" aria-hidden />;
 }
