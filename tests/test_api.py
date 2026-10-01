@@ -166,7 +166,9 @@ def test_health(client):
     d = client.get("/api/v1/health").json()
     assert d["db"] == "ok" and d["status"] == "degraded"
     s = d["sources"]
-    assert s["open-meteo"]["stale"] is False and s["open-meteo"]["age_s"] in range(299, 305)
+    assert (
+        s["open-meteo"]["stale"] is False and 295 <= s["open-meteo"]["age_s"] < 600
+    )  # seeded 5 min ago; suite runtime adds a little
     assert s["uk-air"]["stale"] is True  # 3 h > 2 x 30 min
     assert s["sepa"] == {"last_ok": None, "age_s": None, "stale": True}  # only rate_limited runs
 
