@@ -9,8 +9,8 @@ import { WGS84_ELLIPSOID, type TilesRenderer as TilesRendererImpl } from "3d-til
 import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
@@ -111,6 +111,35 @@ function BasemapOverlay({ tiles, id }: { tiles: TilesRendererImpl | null; id: Ba
   return null;
 }
 
+/**
+ * Moves the sun light (and its shadow frustum) to where the camera looks and sizes the frustum
+ * to the view, so every visible building casts a shadow, not only a fixed box around George Square.
+ */
+// ponytail: one 4096² map stretched over the view (~1–3 m/texel when zoomed out); cascaded shadow maps if close-up quality matters.
+function ShadowFollow({ groundRadius, children }: { groundRadius: number; children: ReactNode }) {
+  const group = useRef<Group>(null);
+  const dir = useMemo(() => new Vector3(), []);
+  useFrame(({ camera }) => {
+    const g = group.current;
+    const light = g?.getObjectByProperty("isDirectionalLight", true) as DirectionalLight | undefined;
+    if (!g || !light) return;
+    // Intersect the view ray with a sphere at ground level; fall back to a point ahead when looking at the sky.
+    const o = camera.position;
+    camera.getWorldDirection(dir);
+    const b = o.dot(dir);
+    const disc = b * b - (o.lengthSq() - groundRadius * groundRadius);
+    const t = disc > 0 ? -b - Math.sqrt(disc) : -1;
+    const range = t > 0 ? Math.min(t, 8000) : 3000;
+    g.position.copy(dir).multiplyScalar(range).add(o).setLength(groundRadius);
+    const half = Math.min(Math.max(range * 1.5, 400), 8000);
+    const cam = light.shadow.camera;
+    cam.left = cam.bottom = -half;
+    cam.right = cam.top = half;
+    cam.updateProjectionMatrix();
+  });
+  return <group ref={group}>{children}</group>;
+}
+
 function Fps() {
   const acc = useRef({ frames: 0, last: 0 });
   useFrame(() => {
@@ -183,21 +212,18 @@ export default function ImmersiveScene({
     >
       <Atmosphere date={date}>
         <Sky />
-        <group position={anchor}>
+        <ShadowFollow groundRadius={anchor.length()}>
           <SkyLight />
           <SunLight
             castShadow
-            distance={3000}
+            distance={10000}
             shadow-mapSize={[4096, 4096]}
-            shadow-camera-left={-700}
-            shadow-camera-right={700}
-            shadow-camera-top={700}
-            shadow-camera-bottom={-700}
-            shadow-camera-near={100}
-            shadow-camera-far={6000}
+            shadow-camera-near={1}
+            shadow-camera-far={20000}
             shadow-bias={-0.0004}
+            shadow-normalBias={1}
           />
-        </group>
+        </ShadowFollow>
         <group ref={setWorld}>
           <TilesRenderer url={TILESET_URL} onLoadModel={onBuildings}>
             {/* the sample/prod tileset is 3D Tiles 1.1 implicit; the plugin is not on by default */}
