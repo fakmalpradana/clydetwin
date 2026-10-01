@@ -14,6 +14,15 @@ import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TILESET_URL } from "@/lib/tileset";
 
+const ionArgs = {
+  apiToken: ION_TOKEN,
+  assetId: "1",
+  autoRefreshToken: true,
+  assetTypeHandler: (type: string, tiles: { registerPlugin: (p: unknown) => void }) => {
+    if (type === "TERRAIN") tiles.registerPlugin(new QuantizedMeshPlugin({ useRecommendedSettings: true }));
+  },
+};
+
 const material = new MeshStandardMaterial({ color: "#b9bec7", roughness: 0.9, metalness: 0, flatShading: true });
 const terrainMaterial = new MeshStandardMaterial({ color: "#2a2f38", roughness: 1, metalness: 0 });
 
@@ -32,6 +41,10 @@ const onTerrain = neutralize(terrainMaterial);
 function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: MutableRefObject<CameraState> }) {
   const camera = useThree((s) => s.camera);
   const get = useThree((s) => s.get);
+  // ponytail: dev-only debug hook for terrain/alignment checks
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") (window as unknown as { __three: unknown }).__three = get();
+  }, [get]);
   const aspect = useThree((s) => s.size.width / s.size.height);
   useEffect(() => stateToCamera(initial, camera), [camera, initial]);
   // Match CesiumJS's default frustum (60 deg across the larger screen dimension) so both viewers frame alike.
@@ -138,10 +151,9 @@ export default function ImmersiveScene({
             {world && <GlobeControls scene={world} enableDamping />}
           </TilesRenderer>
           {hasIon ? (
-            // ponytail: untested until a Cesium ion token exists (asset 1 = Cesium World Terrain).
+            // Cesium World Terrain (ion asset 1); the ion plugin registers the quantized-mesh plugin once it sees TERRAIN.
             <TilesRenderer key="terrain" onLoadModel={onTerrain}>
-              <TilesPlugin plugin={CesiumIonAuthPlugin} args={[{ apiToken: ION_TOKEN, assetId: "1", autoRefreshToken: true }]} />
-              <TilesPlugin plugin={QuantizedMeshPlugin} args={[{ useRecommendedSettings: true }]} />
+              <TilesPlugin plugin={CesiumIonAuthPlugin} args={[ionArgs]} />
             </TilesRenderer>
           ) : (
             <GroundPlane />

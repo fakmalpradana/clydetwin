@@ -15,7 +15,7 @@ import {
 
 export const hasIon = ION_TOKEN.length > 0;
 
-/** Dark basemap. ponytail: Carto raster tiles are fine for a non-commercial portfolio; revisit before any commercial use. */
+/** Dark fallback basemap (no ion token). ponytail: Carto raster tiles are fine for a non-commercial portfolio; revisit before any commercial use. */
 const darkBasemap = () =>
   new Cesium.ImageryLayer(
     new Cesium.UrlTemplateImageryProvider({
@@ -74,6 +74,9 @@ export async function createViewer(
     try {
       viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
       terrainIsIon = true;
+      // With a token, ion imagery replaces the Carto fallback basemap.
+      viewer.imageryLayers.removeAll();
+      viewer.imageryLayers.addImageryProvider(await Cesium.createWorldImageryAsync());
     } catch (e) {
       console.warn("Cesium World Terrain unavailable, using flat ground", e);
     }
