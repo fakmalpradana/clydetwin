@@ -26,3 +26,4 @@ Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`)
 | Task | Description | Status |
 |---|---|---|
 | B1 | `web/lib/api.ts` typed client, stale detection, fixture mode (sample data, rebased to now) | done |
+| B2 | `/live`: weather, river, rainfall and air-quality cards, plain-SVG 24 h charts, stale badge, "sample data" banner; Lighthouse mobile 96 | done |
