@@ -23,11 +23,11 @@ def _run(*cmd) -> None:
     r.check_returncode()
 
 
-def _cog(src: Path, dst: Path) -> None:
+def _cog(src: Path, dst: Path, predictor: int = 3) -> None:
     tmp = config.partial(dst)
     _run(
         "gdal_translate", "--config", "GDAL_CACHEMAX", "1024", "-of", "COG",
-        "-co", "COMPRESS=DEFLATE", "-co", "PREDICTOR=2", "-co", "NUM_THREADS=ALL_CPUS", src, tmp,
+        "-co", "COMPRESS=DEFLATE", "-co", f"PREDICTOR={predictor}", "-co", "BIGTIFF=YES", "-co", "NUM_THREADS=ALL_CPUS", src, tmp,
     )  # fmt: skip
     tmp.rename(dst)
 
@@ -100,7 +100,7 @@ def run(mode: str, cfg: dict | None = None) -> dict[str, Path]:
         step("nDSM COG", paths["ndsm"], lambda: _cog(nd, paths["ndsm"]))
     if not config.fresh(paths["hillshade"], *srcs):
         step("hillshade", hs, make_hs)
-        step("hillshade COG", paths["hillshade"], lambda: _cog(hs, paths["hillshade"]))
+        step("hillshade COG", paths["hillshade"], lambda: _cog(hs, paths["hillshade"], predictor=2))
     for tmp in (nd, hs):
         tmp.unlink(missing_ok=True)
     return paths | {"dtm_vrt": vrt["dtm"]}
