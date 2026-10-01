@@ -2,8 +2,11 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { cameraQuery, paramsToCamera, withCamera, type CameraState } from "@/lib/camera";
+import { carry, cameraQuery, paramsToCamera, setParam, withCamera, type CameraState } from "@/lib/camera";
 import { sceneDate } from "@/lib/time";
+import { parseBasemap, type BasemapId } from "@/lib/basemap";
+import Attribution from "./Attribution";
+import BasemapPicker from "./BasemapPicker";
 import { BUILDING_FIELDS, DEFAULT_HEIGHT_COLOR, HEIGHT_RAMP, type BuildingProps } from "@/lib/tileset";
 import type * as CesiumNS from "cesium";
 
@@ -33,6 +36,7 @@ export default function Explore() {
   const [error, setError] = useState<string | null>(null);
   const [ion, setIon] = useState(false);
   const [lowGpu, setLowGpu] = useState(false);
+  const [bm, setBm] = useState<BasemapId>("dark");
 
   useEffect(() => {
     let disposed = false;
@@ -41,7 +45,8 @@ export default function Explore() {
       const lib = await import("@/lib/cesium");
       if (disposed || !container.current) return;
       setLowGpu(q.get("gpu") === "low");
-      const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q) });
+      setBm(parseBasemap(q));
+      const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q), basemap: parseBasemap(q) });
       if (disposed) return viewer.destroy();
       setIon(terrainKind !== "flat");
       const C = lib.Cesium;
@@ -98,8 +103,15 @@ export default function Explore() {
     a.viewer.terrainProvider = terrain && a.ionTerrain ? a.ionTerrain : a.lib.flatTerrain();
   }, [terrain, ready]);
 
-  const t = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("t");
-  const immersive = `/immersive${cam ? `?${cameraQuery(cam)}${t ? `&t=${encodeURIComponent(t)}` : ""}` : ""}`;
+  const carried = typeof window === "undefined" ? "" : carry(window.location.search);
+  const changeBasemap = (id: BasemapId) => {
+    setBm(id);
+    window.history.replaceState(null, "", setParam(window.location.search, "bm", id));
+    const a = api.current;
+    if (a) a.lib.setBasemap(a.viewer, id).catch((e) => console.warn("basemap failed", e));
+  };
+
+  const immersive = `/immersive${cam ? `?${cameraQuery(cam)}${carried}` : ""}`;
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
@@ -114,7 +126,7 @@ export default function Explore() {
         </Link>
       </header>
 
-      <aside className="absolute bottom-10 left-4 z-10 w-56 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+      <aside className="absolute bottom-10 max-h-[70dvh] overflow-auto left-4 z-10 w-56 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
         <p className="mb-2 font-medium text-muted uppercase tracking-wider">Layers</p>
         <label className="flex items-center gap-2 py-1">
           <input type="checkbox" checked={buildings} onChange={(e) => setBuildings(e.target.checked)} /> Buildings (LoD1)
@@ -122,6 +134,9 @@ export default function Explore() {
         <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs terrain (own or ion); flat ground is used instead"}>
           <input type="checkbox" checked={terrain && ion} disabled={!ion} onChange={(e) => setTerrain(e.target.checked)} /> Terrain{ion ? "" : " (unavailable)"}
         </label>
+        <div className="mt-3">
+          <BasemapPicker value={bm} onChange={changeBasemap} />
+        </div>
         <p className="mt-3 mb-1 font-medium text-muted uppercase tracking-wider">Height (m)</p>
         <div className="flex h-2 overflow-hidden rounded-sm">
           {HEIGHT_RAMP.map(([, c]) => (<span key={c} className="flex-1" style={{ background: c }} />))}
@@ -159,11 +174,13 @@ export default function Explore() {
       {lowGpu && (
         <div className="absolute left-4 right-4 top-16 z-20 rounded-md border border-line bg-panel/95 p-3 text-sm sm:left-auto sm:w-80">
           Your device looks too light for the Immersive view, so you are on the lighter map.{" "}
-          <Link href={`/immersive?${cam ? cameraQuery(cam) + "&" : ""}force=1${t ? `&t=${encodeURIComponent(t)}` : ""}`} className="text-accent underline">
+          <Link href={`/immersive?${cam ? cameraQuery(cam) + "&" : ""}force=1${carried}`} className="text-accent underline">
             Try Immersive anyway
           </Link>
         </div>
       )}
+
+      <Attribution id={bm} cam={cam} className="absolute bottom-8 right-2 z-10 max-w-[60%]" />
 
       {!ion && ready && (
         <p className="absolute left-1/2 top-3 z-10 hidden -translate-x-1/2 rounded bg-panel/85 px-3 py-1 text-[11px] text-muted sm:block">

@@ -3,6 +3,7 @@
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { CameraState } from "./camera";
+import { DEFAULT_BASEMAP, getBasemap, resolveTemplate, type BasemapId } from "./basemap";
 import {
   DEFAULT_HEIGHT_COLOR,
   FLAT_GROUND_M,
@@ -16,19 +17,24 @@ import {
 
 export const hasIon = ION_TOKEN.length > 0;
 
-/** Dark fallback basemap (no ion token). ponytail: Carto raster tiles are fine for a non-commercial portfolio; revisit before any commercial use. */
-const darkBasemap = () =>
-  new Cesium.ImageryLayer(
-    new Cesium.UrlTemplateImageryProvider({
-      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      subdomains: ["a", "b", "c", "d"],
-      maximumLevel: 19,
-      credit: new Cesium.Credit(
-        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
-        true,
-      ),
-    }),
+/**
+ * Imagery layer for a basemap. Attribution is rendered by our own overlay (components/Attribution.tsx), so the
+ * layer carries no Cesium credit. ponytail: Carto/OSM raster tiles are fine for a low-traffic portfolio; revisit before heavy use.
+ */
+export async function basemapLayer(id: BasemapId) {
+  const b = getBasemap(id);
+  const { url, subdomains } = await resolveTemplate(b);
+  return new Cesium.ImageryLayer(
+    new Cesium.UrlTemplateImageryProvider({ url, subdomains, maximumLevel: b.maxLevel }),
   );
+}
+
+/** Swap the single basemap layer under the buildings. */
+export async function setBasemap(viewer: Cesium.Viewer, id: BasemapId) {
+  const layer = await basemapLayer(id);
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.add(layer);
+}
 
 /** Constant-height terrain, so buildings with ellipsoidal bases sit on the map when ion terrain is unavailable. */
 export const flatTerrain = () =>
@@ -40,11 +46,11 @@ export const flatTerrain = () =>
 
 export async function createViewer(
   container: HTMLElement,
-  opts: { interactive: boolean; date?: Date },
+  opts: { interactive: boolean; date?: Date; basemap?: BasemapId },
 ) {
   if (hasIon) Cesium.Ion.defaultAccessToken = ION_TOKEN;
   const viewer = new Cesium.Viewer(container, {
-    baseLayer: darkBasemap(),
+    baseLayer: false,
     baseLayerPicker: false,
     geocoder: false,
     homeButton: false,
@@ -82,14 +88,6 @@ export async function createViewer(
     }
   }
   if (hasIon) {
-    // With a token, ion imagery replaces the Carto fallback basemap.
-    try {
-      viewer.imageryLayers.removeAll();
-      viewer.imageryLayers.addImageryProvider(await Cesium.createWorldImageryAsync());
-    } catch (e) {
-      console.warn("ion imagery unavailable", e);
-      viewer.imageryLayers.add(darkBasemap());
-    }
     if (!realTerrain) {
       try {
         realTerrain = await Cesium.createWorldTerrainAsync();
@@ -100,6 +98,12 @@ export async function createViewer(
     }
   }
   if (realTerrain) viewer.terrainProvider = realTerrain;
+  try {
+    await setBasemap(viewer, opts.basemap ?? DEFAULT_BASEMAP);
+  } catch (e) {
+    console.warn("basemap unavailable, falling back to the default", e);
+    await setBasemap(viewer, DEFAULT_BASEMAP);
+  }
   return { viewer, terrain, realTerrain };
 }
 

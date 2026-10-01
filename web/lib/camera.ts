@@ -67,3 +67,22 @@ export function withCamera(search: string, c: CameraState): string {
   cameraToParams(c).forEach((v, k) => q.set(k, v));
   return `?${q.toString()}`;
 }
+
+/** Shared non-camera params carried across viewer switches: scene time `t` and basemap `bm`. Returns "" or "&t=..&bm=..". */
+export function carry(search: string): string {
+  const q = new URLSearchParams(search);
+  const out = new URLSearchParams();
+  for (const k of ["t", "bm"]) {
+    const v = q.get(k);
+    if (v) out.set(k, v);
+  }
+  const s = out.toString();
+  return s ? `&${s}` : "";
+}
+
+/** Replace/add one query param in the current URL without a navigation. */
+export function setParam(search: string, key: string, value: string): string {
+  const q = new URLSearchParams(search);
+  q.set(key, value);
+  return `?${q.toString()}`;
+}
