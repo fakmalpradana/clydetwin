@@ -2,7 +2,7 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: live-up live-down live-logs migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
+.PHONY: live-up live-down live-logs soak-report migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
 help:
 	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
@@ -68,6 +68,11 @@ live-down:
 
 live-logs:
 	$(LIVE) logs -f --tail=100 api collectors
+
+# Ingest soak check over the last HOURS (default 72): runs, gaps > 2x interval, last errors
+HOURS ?= 72
+soak-report:
+	$(LIVE) exec -T db psql -U clydetwin -d clydetwin -v hours=$(HOURS) -f - < db/soak_report.sql
 
 # Apply db/migrations/*.sql to DATABASE_URL (the api container also does this at start)
 migrate:
