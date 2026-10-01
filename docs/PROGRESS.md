@@ -59,5 +59,5 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B1 | `web/lib/vehicles.ts`: typed client for `/vehicles` and `/tracks`, dead-reckoning and track interpolation, SSE hook, generated sample data in fixture mode (aircraft on the EGPF runway 23 approach, 4 subway trains), all labelled simulated | done |
 | B2 | `/explore` mobility layer (`useMobility`): heading-aligned billboards coloured by mode (live/scheduled/simulated) with badge, click to follow, 24 h replay slider on the Cesium clock with `SampledPositionProperty` (aircraft only; Subway is live-only) | done (lint, tsc, build pass; browser check pending, see report) |
 | B3 | `/immersive` aircraft and Subway trains as mode-coloured primitives (no CC0 glTF used; billboards/primitives per brief), dead-reckoned every frame from `lib/vehicles`, mode legend and SAMPLE DATA label | done (lint, tsc pass; browser check pending) |
-| B4 | `/about/data` attributions (adsb.lol, OSM, NaPTAN, SPT) and "coming soon" sources | todo |
+| B4 | `/about/data`: adsb.lol and OSM (ODbL), NaPTAN (OGL), SPT headway, SAMPLE DATA note, mode badge explainer; bus, rail, traffic and car parks marked coming soon | done |
 | B5 | vitest for interpolation and fixture parsing | todo |

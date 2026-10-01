@@ -37,7 +37,22 @@ export default function DataPage() {
         <li>River levels and rainfall: SEPA KiWIS, &copy; SEPA, OGL v3.0. Provisional data.</li>
         <li>Flood zones (optional layer on /explore): SEPA Flood Maps, &copy; SEPA 2025, licensed under the Open Government Licence v3.0, served directly from SEPA&rsquo;s public map service (river high and medium likelihood, coastal medium likelihood). Indicative only; not for property or insurance decisions.</li>
         <li>Air quality: UK-AIR (Defra) via its Sensor Observation Service API. Contains public sector information licensed under the Open Government Licence v3.0 (UK-AIR, Defra) &mdash; licence pending confirmation. Provisional, not ratified.</li>
+        <li>Aircraft (/explore and /immersive): positions from adsb.lol, an open ADS-B network, under ODbL 1.0. Community-fed and unfiltered, so coverage is uneven; shown as <b>live</b> only when received from the feed.</li>
+        <li>Subway: the circle geometry is &copy; OpenStreetMap contributors (ODbL 1.0), stations are from NaPTAN (Department for Transport, Open Government Licence v3.0), and the headway follows the timetable published by SPT. The trains themselves are a <b>simulation</b>, not tracked vehicles.</li>
+        <li>Sample data: with no API configured the mobility layers show invented aircraft and trains, labelled SAMPLE DATA.</li>
       </ul>
+
+      <h2 className="mt-10 text-lg font-semibold">Coming soon</h2>
+      <p className="mt-3 text-sm text-muted">
+        Not shown yet, pending data access: buses (Bus Open Data Service), National Rail trains (Rail Data Marketplace),
+        SCOOT traffic and car parks (Glasgow open data portal).
+      </p>
+
+      <h2 className="mt-10 text-lg font-semibold">Moving things</h2>
+      <p className="mt-3 text-sm text-muted">
+        Every moving marker carries a badge: <b>live</b> (observed now), <b>scheduled</b> (from a timetable) or
+        <b> simulated</b> (computed by us). Heights are ellipsoidal metres. Aircraft models are simple shapes, not the real aircraft type.
+      </p>
 
       <h2 className="mt-10 text-lg font-semibold">Licences</h2>
       <table className="mt-3 w-full text-left text-sm">
@@ -45,7 +60,7 @@ export default function DataPage() {
           {[
             ["Source code", "AGPL-3.0-or-later"],
             ["Derived data (3D Tiles, building heights, analytical attributes)", "CC BY-SA 4.0"],
-            ["Layers derived from OpenStreetMap / adsb.lol (later phases)", "ODbL 1.0, kept separate"],
+            ["Layers derived from OpenStreetMap / adsb.lol", "ODbL 1.0, kept separate"],
             ["Documentation, methods, blog text", "CC BY 4.0"],
           ].map(([a, b]) => (
             <tr key={a}><td className="py-2 pr-4">{a}</td><td className="py-2 font-mono text-xs text-accent">{b}</td></tr>
