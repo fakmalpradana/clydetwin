@@ -4,8 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type * as CesiumNS from "cesium";
 import { FIXTURE } from "@/lib/api";
 import { useVehicles } from "@/lib/useVehicles";
-import { subwayTracks } from "@/lib/vehicles-fixture";
-import { MODE_COLOR, MODE_LABEL, getTracks, interpolate, project, type Mode, type Tracks, type Vehicle, type VKind } from "@/lib/vehicles";
+import { MODE_COLOR, MODE_LABEL, getTracks, interpolate, isSubwayId, project, subwayLabel, type Mode, type Tracks, type Vehicle, type VKind } from "@/lib/vehicles";
 
 type Api = { lib: typeof import("@/lib/cesium"); viewer: CesiumNS.Viewer } | null;
 const DAY_MIN = 1440;
@@ -57,7 +56,6 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
   const latest = useRef(new Map<string, Vehicle>());
   const [base, setBase] = useState(0); // 'now' when replay was entered, epoch ms
   const clockMs = useRef(0);
-  const subLabels = useRef<Record<string, string>>({});
 
   // Data source + click handler, once the viewer exists.
   useEffect(() => {
@@ -83,7 +81,8 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
     };
   }, [getApi, ready]);
 
-  const camHeading = (a: NonNullable<Api>, hd: () => number) => new a.lib.Cesium.CallbackProperty(() => -(a.lib.Cesium.Math.toRadians(hd()) - a.viewer.camera.heading), false);
+  // Unknown heading (null): no rotation, the icon stays screen-up.
+  const camHeading = (a: NonNullable<Api>, hd: () => number | null) => new a.lib.Cesium.CallbackProperty(() => { const h = hd(); return h == null ? 0 : -(a.lib.Cesium.Math.toRadians(h) - a.viewer.camera.heading); }, false);
 
   // Live: one entity per vehicle, position and rotation read from the latest sample every frame.
   useEffect(() => {
@@ -125,9 +124,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
     if (!entering) { a.viewer.clock.currentTime = a.lib.Cesium.JulianDate.now(); return; }
     let alive = true;
     const from = new Date(base - DAY_MIN * 60_000), to = new Date(base);
-    const sub = subwayTracks(from.getTime(), to.getTime());
-    subLabels.current = sub.labels;
-    getTracks(from, to).then((t) => alive && setTracks({ ...t, ...sub.tracks }), () => alive && setTrackErr(true));
+    Promise.all([getTracks(from, to, "aircraft"), getTracks(from, to, "subway")]).then(([a, s]) => alive && setTracks({ ...a, ...s }), () => alive && setTrackErr(true));
     return () => { alive = false; };
   }, [entering, base, ready, getApi]);
 
@@ -144,8 +141,8 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
       const times = tr.map((s) => (typeof s[0] === "string" ? Date.parse(s[0]) : s[0] < 1e11 ? s[0] * 1000 : s[0]));
       tr.forEach((s, i) => pos.addSample(C.JulianDate.fromDate(new Date(times[i])), C.Cartesian3.fromDegrees(s[1], s[2], s[3])));
       pos.forwardExtrapolationType = pos.backwardExtrapolationType = C.ExtrapolationType.NONE;
-      const sub = id in subLabels.current, kind: VKind = sub ? "subway" : "aircraft", mode: Mode = sub || FIXTURE ? "simulated" : "live";
-      const label = sub ? subLabels.current[id] : id.replace(/^fx-ac-/, "Sample ");
+      const sub = isSubwayId(id), kind: VKind = sub ? "subway" : "aircraft", mode: Mode = sub || FIXTURE ? "simulated" : "live";
+      const label = sub ? subwayLabel(id) : id.replace(/^fx-ac-/, "Sample ");
       source.entities.add({
         id,
         availability: new C.TimeIntervalCollection([new C.TimeInterval({ start: C.JulianDate.fromDate(new Date(times[0])), stop: C.JulianDate.fromDate(new Date(times[times.length - 1])) })]),
@@ -154,7 +151,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
         billboard: {
           image: icon(kind, mode),
           scale: sub ? 0.6 : 0.9,
-          rotation: camHeading(a, () => interpolate(tr, clockMs.current)?.heading_deg ?? 0),
+          rotation: camHeading(a, () => interpolate(tr, clockMs.current)?.heading_deg ?? null),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         properties: { meta: { id, label, kind, mode, replay: true } },
@@ -214,7 +211,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
             <>
               <input type="range" className="mt-2 w-full" min={-DAY_MIN} max={0} step={1} value={offsetMin} aria-label="Replay time" onChange={(e) => { setPlaying(false); setOffsetMin(+e.target.value); }} />
               <p className="font-mono text-[10px] text-muted">{glasgow(base + offsetMin * 60_000)} (Glasgow){trackErr ? ", tracks unavailable" : tracks && !Object.keys(tracks).length ? ", no tracks" : ""}</p>
-              <p className="text-[10px] text-muted">Subway replay is a client-side simulation, not recorded data.</p>
+              <p className="text-[10px] text-muted">Subway replay is simulated, not recorded data.</p>
             </>
           )}
         </>
@@ -233,7 +230,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
         {FIXTURE && <span className="text-amber-200">SAMPLE DATA</span>}
         {picked.replay && <span className="text-muted">replay</span>}
       </p>
-      {sel && <p className="mt-2 font-mono text-xs text-muted">{Math.round(sel.speed_ms * 1.944)} kt · {Math.round(sel.heading_deg)}° · {Math.round(sel.h)} m (ellipsoidal)</p>}
+      {sel && <p className="mt-2 font-mono text-xs text-muted">{sel.speed_ms == null ? "speed n/a" : `${Math.round(sel.speed_ms * 1.944)} kt`} · {sel.heading_deg == null ? "heading n/a" : `${Math.round(sel.heading_deg)}°`} · {Math.round(sel.h)} m (ellipsoidal)</p>}
       <button onClick={() => setFollowing((f) => !f)} className="mt-3 rounded border border-line px-2 py-1 text-xs hover:text-accent">{following ? "Stop following" : "Follow with camera"}</button>
     </section>
   );
