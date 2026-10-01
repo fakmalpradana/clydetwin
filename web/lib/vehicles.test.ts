@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { bearing, getTracks, getVehicles, interpolate, offset, parseVehicles, project, toMs, type Vehicle } from "./vehicles";
 import { FLAT_GROUND_M } from "./tileset";
-import { fixtureVehicles } from "./vehicles-fixture";
+import { fixtureVehicles, subwayTracks } from "./vehicles-fixture";
 
 const T0 = Date.parse("2026-03-01T12:00:00Z");
 const v: Vehicle = { id: "a", kind: "aircraft", label: "X", mode: "live", heading_deg: 90, speed_ms: 100, t: T0, lon: -4.4, lat: 55.87, h: 500 };
@@ -105,5 +105,17 @@ describe("fixture matches the API contract", () => {
     const a = fixtureVehicles("subway", T0), b = fixtureVehicles("subway", T0);
     expect(a).toEqual(b);
     for (const f of a.features) expect(Math.abs(f.geometry.coordinates[1] - 55.86)).toBeLessThanOrEqual(0.0076);
+  });
+});
+
+describe("subwayTracks (client-side replay)", () => {
+  it("covers the window for all trains and matches the live positions", async () => {
+    const { tracks, labels } = subwayTracks(T0 - 3600_000, T0);
+    expect(Object.keys(tracks)).toHaveLength(4);
+    expect(Object.keys(labels)).toEqual(Object.keys(tracks));
+    for (const v of await getVehicles("subway", new Date(T0 - 1800_000))) {
+      const m = interpolate(tracks[v.id], T0 - 1800_000)!;
+      expect(Math.abs(m.lon - v.lon)).toBeLessThan(1e-6);
+    }
   });
 });

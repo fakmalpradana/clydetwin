@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type * as CesiumNS from "cesium";
 import { FIXTURE } from "@/lib/api";
 import { useVehicles } from "@/lib/useVehicles";
+import { subwayTracks } from "@/lib/vehicles-fixture";
 import { MODE_COLOR, MODE_LABEL, getTracks, interpolate, project, type Mode, type Tracks, type Vehicle, type VKind } from "@/lib/vehicles";
 
 type Api = { lib: typeof import("@/lib/cesium"); viewer: CesiumNS.Viewer } | null;
@@ -56,6 +57,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
   const latest = useRef(new Map<string, Vehicle>());
   const [base, setBase] = useState(0); // 'now' when replay was entered, epoch ms
   const clockMs = useRef(0);
+  const subLabels = useRef<Record<string, string>>({});
 
   // Data source + click handler, once the viewer exists.
   useEffect(() => {
@@ -97,6 +99,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
       const cur = () => latest.current.get(v.id)!;
       source.entities.add({
         id: v.id,
+        viewFrom: new C.Cartesian3(0, -600, 400), // follow from behind and above, not from ground level
         position: new C.CallbackProperty(() => { const p = project(cur(), Date.now()); return C.Cartesian3.fromDegrees(p.lon, p.lat, p.h); }, false) as unknown as CesiumNS.PositionProperty,
         billboard: {
           image: icon(v.kind, v.mode),
@@ -121,7 +124,10 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
     a.viewer.trackedEntity = undefined;
     if (!entering) { a.viewer.clock.currentTime = a.lib.Cesium.JulianDate.now(); return; }
     let alive = true;
-    getTracks(new Date(base - DAY_MIN * 60_000), new Date(base)).then((t) => alive && setTracks(t), () => alive && setTrackErr(true));
+    const from = new Date(base - DAY_MIN * 60_000), to = new Date(base);
+    const sub = subwayTracks(from.getTime(), to.getTime());
+    subLabels.current = sub.labels;
+    getTracks(from, to).then((t) => alive && setTracks({ ...t, ...sub.tracks }), () => alive && setTrackErr(true));
     return () => { alive = false; };
   }, [entering, base, ready, getApi]);
 
@@ -138,18 +144,20 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
       const times = tr.map((s) => (typeof s[0] === "string" ? Date.parse(s[0]) : s[0] < 1e11 ? s[0] * 1000 : s[0]));
       tr.forEach((s, i) => pos.addSample(C.JulianDate.fromDate(new Date(times[i])), C.Cartesian3.fromDegrees(s[1], s[2], s[3])));
       pos.forwardExtrapolationType = pos.backwardExtrapolationType = C.ExtrapolationType.NONE;
-      const label = id.replace(/^fx-ac-/, "Sample ");
+      const sub = id in subLabels.current, kind: VKind = sub ? "subway" : "aircraft", mode: Mode = sub || FIXTURE ? "simulated" : "live";
+      const label = sub ? subLabels.current[id] : id.replace(/^fx-ac-/, "Sample ");
       source.entities.add({
         id,
         availability: new C.TimeIntervalCollection([new C.TimeInterval({ start: C.JulianDate.fromDate(new Date(times[0])), stop: C.JulianDate.fromDate(new Date(times[times.length - 1])) })]),
+        viewFrom: new C.Cartesian3(0, -600, 400),
         position: pos,
         billboard: {
-          image: icon("aircraft", FIXTURE ? "simulated" : "live"),
-          scale: 0.9,
+          image: icon(kind, mode),
+          scale: sub ? 0.6 : 0.9,
           rotation: camHeading(a, () => interpolate(tr, clockMs.current)?.heading_deg ?? 0),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
-        properties: { meta: { id, label, kind: "aircraft", mode: FIXTURE ? "simulated" : "live", replay: true } },
+        properties: { meta: { id, label, kind, mode, replay: true } },
       });
     }
   }, [tracks, ready, getApi]);
@@ -206,7 +214,7 @@ export function useMobility(getApi: () => Api, ready: boolean): { controls: Reac
             <>
               <input type="range" className="mt-2 w-full" min={-DAY_MIN} max={0} step={1} value={offsetMin} aria-label="Replay time" onChange={(e) => { setPlaying(false); setOffsetMin(+e.target.value); }} />
               <p className="font-mono text-[10px] text-muted">{glasgow(base + offsetMin * 60_000)} (Glasgow){trackErr ? ", tracks unavailable" : tracks && !Object.keys(tracks).length ? ", no tracks" : ""}</p>
-              <p className="text-[10px] text-muted">Aircraft only; the Subway is simulated and shown live.</p>
+              <p className="text-[10px] text-muted">Subway replay is a client-side simulation, not recorded data.</p>
             </>
           )}
         </>

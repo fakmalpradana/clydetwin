@@ -62,3 +62,19 @@ export function fixtureTracks(fromMs: number, toMs: number): Tracks {
   }
   return out;
 }
+
+const SUBWAY_STEP_MS = 30000;
+/** Client-side Subway tracks for the replay slider, from the same deterministic sim as the live positions. */
+export function subwayTracks(fromMs: number, toMs: number): { tracks: Tracks; labels: Record<string, string> } {
+  const tracks: Tracks = {}, labels: Record<string, string> = {};
+  for (let i = 0; i < TRAINS; i++) {
+    const id = subwayAt(i, 0).id;
+    labels[id] = subwayAt(i, 0).label;
+    tracks[id] = [];
+    for (let t = Math.ceil(fromMs / SUBWAY_STEP_MS) * SUBWAY_STEP_MS; t <= toMs; t += SUBWAY_STEP_MS) {
+      const a = subwayAt(i, t);
+      tracks[id].push([t / 1000, a.lon, a.lat, a.h]);
+    }
+  }
+  return { tracks, labels };
+}
