@@ -16,6 +16,7 @@ export interface BuildingProps {
   building_id: string; // OpenMap Local UUID
   height: number; // m, = h_p70
   h_max: number; // m
+  h_p90?: number; // m; not in the current tiles (pipeline writes h_max only), shown when present
   ground_z_odn: number; // m above Ordnance Datum Newlyn
   ground_z_ellip: number; // m above the ETRS89/WGS84 ellipsoid
   area_m2: number; // m2
@@ -26,6 +27,7 @@ export interface BuildingProps {
 export const BUILDING_FIELDS: { key: keyof BuildingProps; label: string; unit?: string }[] = [
   { key: "building_id", label: "Building ID" },
   { key: "height", label: "Height (p70)", unit: "m" },
+  { key: "h_p90", label: "Height (p90)", unit: "m" },
   { key: "h_max", label: "Max height", unit: "m" },
   { key: "ground_z_odn", label: "Ground (ODN)", unit: "m" },
   { key: "ground_z_ellip", label: "Ground (ellipsoidal)", unit: "m" },

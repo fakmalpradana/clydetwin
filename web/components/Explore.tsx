@@ -140,13 +140,16 @@ export default function Explore() {
             <button onClick={() => setSelected(null)} className="text-muted hover:text-fg" aria-label="Close panel">&times;</button>
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-            {BUILDING_FIELDS.map((f) => (
+            {BUILDING_FIELDS.filter((f) => f.key !== "h_p90" || selected.h_p90 !== undefined).map((f) => (
               <div key={f.key} className="contents">
                 <dt className="text-muted">{f.label}</dt>
                 <dd className="break-all text-right font-mono text-xs leading-5">{fmt(selected[f.key], f.unit)}</dd>
               </div>
             ))}
           </dl>
+          <p className="mt-3 text-xs text-muted">
+            LoD1 block height (70th percentile); towers shown fully in LoD2 (coming).
+          </p>
           {selected.height_source === "default" && (
             <p className="mt-3 text-xs text-muted">No LiDAR coverage for this footprint: height is a 6 m placeholder.</p>
           )}
