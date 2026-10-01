@@ -1,5 +1,5 @@
 name: Archive environmental data
-# Saves SEPA KiWIS (river level, rainfall) and Open-Meteo UKMO to R2 every 15 minutes.
+# Saves Open-Meteo UKMO and UK-AIR (PM2.5, NO2) (and SEPA KiWIS when enabled) to R2 every 15 minutes.
 # Secrets (set by the repository owner): R2_ACCOUNT_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
 on:
   schedule:
@@ -20,7 +20,7 @@ jobs:
         env:
           # SEPA KiWIS rate-limits anonymous IPs (HTTP 429); add sepa_kiwis back via the
           # ARCHIVE_SOURCES repo variable once SEPA access is sorted.
-          ARCHIVE_SOURCES: ${{ vars.ARCHIVE_SOURCES || 'open_meteo_ukmo' }}
+          ARCHIVE_SOURCES: ${{ vars.ARCHIVE_SOURCES || 'open_meteo_ukmo,uk_air' }}
           R2_ACCOUNT_ENDPOINT: ${{ secrets.R2_ACCOUNT_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

@@ -76,3 +76,22 @@ def test_ndjson_roundtrip_and_key():
     lines = gzip.decompress(body).decode().splitlines()
     assert [json.loads(x)["a"] for x in lines] == [1, 2]
     assert archive.object_key("sepa_kiwis", t) == "raw/sepa_kiwis/2026/10/01/1415.ndjson.gz"
+
+
+def test_collect_uk_air_flattens_and_skips_nulls(monkeypatch):
+    from collectors import air_quality
+
+    s = {"ts_id": "5", "site": "Glasgow X", "param": "no2", "unit": "µg/m³", "lat": 1.0, "lon": 2.0}
+    payload = {
+        "values": [
+            {"timestamp": 1790848800000, "value": 3.0},
+            {"timestamp": 1790852400000, "value": None},
+        ]
+    }
+    monkeypatch.setattr(air_quality, "fetch", lambda: [(s, payload)])
+    recs = archive.collect_uk_air()
+    assert (
+        len(recs) == 1
+        and recs[0]["site"] == "Glasgow X"
+        and recs[0]["timestamp"].endswith("+00:00")
+    )
