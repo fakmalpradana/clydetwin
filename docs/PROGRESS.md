@@ -2,7 +2,7 @@
 
 ## Phase 1: Glasgow in 3D
 
-Pipeline workstream A (branch `p1/pipeline`). Status: todo / doing / done.
+Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`). Status: todo / doing / done.
 
 | Task | Description | Status |
 |---|---|---|
@@ -14,3 +14,4 @@ Pipeline workstream A (branch `p1/pipeline`). Status: todo / doing / done.
 | 1.6 | Heights (exactextract) | done |
 | 1.7 | Vertical datum (ODN to ellipsoid) | done |
 | 1.8 | 3D Tiles | done (sample) |
+| 1.10 | Web: `/`, `/explore`, `/about/data`, `web/lib/` | done (sample tileset, no ion token yet) |
