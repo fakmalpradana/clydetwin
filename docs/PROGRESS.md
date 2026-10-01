@@ -45,6 +45,9 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B2 | `/live`: weather, river, rainfall and air-quality cards, plain-SVG 24 h charts, stale badge, "sample data" banner; Lighthouse mobile 96 | done |
 | B3 | `/explore`: bottom ticker, weather widget, status-coloured river gauges (click for 24 h chart), SEPA flood-zone toggle (Flood_Maps MapServer, OGL v3 verified, attributed on `/about/data`). OS Open Rivers and greenspace deferred: they are bulk downloads that need vector tiling | done |
 | B4 | `/immersive`: river gauges as status-coloured pole markers at FLAT_GROUND_M, plus the same sample-labelled ticker | done |
+| B3b | Fix: `/immersive` vehicles scaled with camera distance (min ~24 px) so they show at city scale; the dashed line at the horizon in the test frame is a pre-existing terrain-edge artefact, present with vehicles removed | done |
+| B2b | Fix: follow camera views the vehicle from behind and above | done |
+| B2c | Subway replay computed client-side from the deterministic sim, so the slider covers aircraft and trains (approximation of the backend sim in API mode, labelled) | done |
 | B5 | vitest for `api.ts` stale logic and fixture parsing (9 tests, landed with B1); web total 22 tests | done |
 | B6 | Weather (temp, wind, precip, low/mid/high cloud, stale flag) in the bottom ticker of /explore and /immersive; cloud hidden on narrow screens | done |
 | B7a | Gate fix: /live air cards and ticker request and label PM2.5 when the site has it, else NO2 (`?param=`) | done |
