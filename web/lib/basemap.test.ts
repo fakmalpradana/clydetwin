@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { approxView, availableBasemaps, getBasemap, googleTileUrl, parseBasemap } from "./basemap";
 
 describe("basemaps", () => {
-  it("defaults to Carto Dark Matter and rejects unknown or gated ids", () => {
+  it("defaults to the dark basemap and rejects unknown or gated ids", () => {
     expect(parseBasemap("")).toBe("dark");
     expect(parseBasemap("bm=esri")).toBe("esri");
     expect(parseBasemap("bm=nonsense")).toBe("dark");
@@ -14,7 +14,8 @@ describe("basemaps", () => {
 
   it("carries the required attributions", () => {
     expect(getBasemap("esri").attribution).toBe("Esri, Maxar, Earthstar Geographics, and the GIS User Community");
-    expect(getBasemap("dark").attribution).toMatch(/OpenStreetMap.*CARTO/);
+    expect(getBasemap("dark").attribution).toMatch(/Esri, HERE, Garmin.*OpenStreetMap/);
+    expect(getBasemap("dark").url).not.toMatch(/cartocdn/);
     expect(getBasemap("osm").attribution).toMatch(/OpenStreetMap/);
   });
 

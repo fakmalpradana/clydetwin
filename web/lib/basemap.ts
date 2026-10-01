@@ -19,11 +19,13 @@ export interface Basemap {
 export const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
-const CARTO = '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>';
+const ESRI_GRAY = "Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community";
 
 export const BASEMAPS: Basemap[] = [
-  { id: "dark", label: "Carto Dark Matter", url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", subdomains: ["a", "b", "c", "d"], maxLevel: 19, attribution: `${OSM} ${CARTO}` },
-  { id: "light", label: "Carto Positron", url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", subdomains: ["a", "b", "c", "d"], maxLevel: 19, attribution: `${OSM} ${CARTO}` },
+  // Carto's free raster tiles now return an "API KEY REQUIRED" placeholder for every tile, so the dark and light
+  // basemaps use Esri's public gray canvases instead (ids kept so existing bm= links still work).
+  { id: "dark", label: "Esri Dark Gray", url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxLevel: 16, attribution: ESRI_GRAY },
+  { id: "light", label: "Esri Light Gray", url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", maxLevel: 16, attribution: ESRI_GRAY },
   { id: "esri", label: "Esri World Imagery", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", maxLevel: 19, attribution: "Esri, Maxar, Earthstar Geographics, and the GIS User Community" },
   { id: "osm", label: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", maxLevel: 19, attribution: OSM },
   { id: "google-road", label: "Google roadmap", url: "", maxLevel: 22, attribution: "", google: "roadmap" },
