@@ -13,6 +13,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import { type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
+import { effectiveStatus, type StationFeature } from "@/lib/api";
+import { STATUS_COLOR } from "@/lib/status";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
@@ -175,12 +177,56 @@ function GroundPlane() {
   );
 }
 
+/**
+ * River gauges as a pole with a coloured ball, standing on the FLAT_GROUND_M plane (ellipsoidal metres) like the
+ * ground fallback; the poles are tall enough to read from the default camera and to stay visible over our own terrain.
+ */
+function Gauges({ stations, tick }: { stations: StationFeature[]; tick: number }) {
+  const items = useMemo(
+    () =>
+      stations
+        .filter((f) => f.properties.kind === "river_level")
+        .map((f) => ({
+          id: f.properties.id,
+          color: STATUS_COLOR[effectiveStatus(f.properties, tick)],
+          matrix: WGS84_ELLIPSOID.getEastNorthUpFrame(
+            (f.geometry.coordinates[1] * Math.PI) / 180,
+            (f.geometry.coordinates[0] * Math.PI) / 180,
+            FLAT_GROUND_M,
+            new Matrix4(),
+          ),
+        })),
+    [stations, tick],
+  );
+  return (
+    <>
+      {items.map((g) => (
+        <group key={g.id} matrixAutoUpdate={false} matrix={g.matrix}>
+          {/* local z is up; cylinder axis is y, so rotate */}
+          <mesh position={[0, 0, 15]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[1.2, 1.2, 30, 8]} />
+            <meshBasicMaterial color="#e6e9ef" />
+          </mesh>
+          <mesh position={[0, 0, 36]}>
+            <sphereGeometry args={[7, 20, 14]} />
+            <meshBasicMaterial color={g.color} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  );
+}
+
 export default function ImmersiveScene({
   initial,
   date,
   basemap,
   latestRef,
+  stations,
+  tick,
 }: {
+  stations: StationFeature[];
+  tick: number;
   initial: CameraState;
   date: Date;
   basemap: BasemapId;
@@ -242,6 +288,7 @@ export default function ImmersiveScene({
             <GroundPlane />
           )}
         </group>
+        <Gauges stations={stations} tick={tick} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />

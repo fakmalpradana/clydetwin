@@ -23,6 +23,9 @@ export default function Home() {
           <Link href="/immersive" className="rounded-md border border-line bg-panel/70 px-5 py-3 text-sm font-medium backdrop-blur hover:border-accent">
             Immersive view
           </Link>
+          <Link href="/live" className="rounded-md border border-line bg-panel/70 px-5 py-3 text-sm font-medium backdrop-blur hover:border-accent">
+            Glasgow now
+          </Link>
         </div>
       </div>
       <footer className="absolute bottom-0 z-10 w-full px-4 py-3 sm:px-10 text-[11px] leading-snug text-muted bg-bg/60 backdrop-blur">

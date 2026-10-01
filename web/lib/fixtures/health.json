@@ -1,0 +1,21 @@
+{
+ "status": "ok",
+ "db": "ok",
+ "sources": {
+  "sepa": {
+   "last_ok": "2026-01-01T12:00:00Z",
+   "age_s": 300,
+   "stale": false
+  },
+  "meteo": {
+   "last_ok": "2026-01-01T12:00:00Z",
+   "age_s": 600,
+   "stale": false
+  },
+  "saqd": {
+   "last_ok": "2026-01-01T12:00:00Z",
+   "age_s": 1800,
+   "stale": false
+  }
+ }
+}

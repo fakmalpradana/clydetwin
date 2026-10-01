@@ -33,7 +33,10 @@ export default function DataPage() {
         </li>
         <li>Terrain: ClydeTwin terrain built from the Scottish LiDAR DTM; Cesium World Terrain via Cesium ion is only a fallback.</li>
 
-        <li>Weather data by Open-Meteo.com (CC BY 4.0), source: UK Met Office (later phases).</li>
+        <li>Weather: Open-Meteo.com (CC BY 4.0), model data from the UK Met Office.</li>
+        <li>River levels and rainfall: SEPA KiWIS, &copy; SEPA, OGL v3.0. Provisional data.</li>
+        <li>Flood zones (optional layer on /explore): SEPA Flood Maps, &copy; SEPA 2025, licensed under the Open Government Licence v3.0, served directly from SEPA&rsquo;s public map service (river high and medium likelihood, coastal medium likelihood). Indicative only; not for property or insurance decisions.</li>
+        <li>Air quality: Scottish Air Quality Database (scottishairquality.scot), provisional and not ratified, subject to the source terms on that site.</li>
       </ul>
 
       <h2 className="mt-10 text-lg font-semibold">Licences</h2>
