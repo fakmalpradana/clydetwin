@@ -26,4 +26,5 @@ versioning: [SemVer](https://semver.org/).
 - SEPA KiWIS archiving not yet verified (rate-limited during testing).
 
 [Unreleased]: https://github.com/fakmalpradana/clydetwin/compare/v0.1.0...HEAD
+[0.1.1]: https://github.com/fakmalpradana/clydetwin/releases/tag/v0.1.1
 [0.1.0]: https://github.com/fakmalpradana/clydetwin/releases/tag/v0.1.0
