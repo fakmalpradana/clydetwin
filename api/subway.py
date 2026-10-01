@@ -12,6 +12,7 @@ import math
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from psycopg.rows import tuple_row
 from shapely import wkt
 from shapely.geometry import LineString, Point
 
@@ -94,10 +95,11 @@ def positions(loops: dict[str, Loop], at: datetime) -> list[dict]:
 
 def load_loops(conn) -> dict[str, Loop]:
     """Loops from ref.*; origin = Govan. Empty until `python -m collectors.subway` has run."""
-    govan = conn.execute(
+    cur = conn.cursor(row_factory=tuple_row)
+    govan = cur.execute(
         "select st_x(geom), st_y(geom) from ref.subway_station where name = 'Govan'"
     ).fetchone()
     return {
         c: Loop(list(wkt.loads(w).coords), govan)
-        for c, w in conn.execute("select circle, st_astext(geom) from ref.subway_track")
+        for c, w in cur.execute("select circle, st_astext(geom) from ref.subway_track")
     }

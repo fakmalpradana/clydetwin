@@ -59,4 +59,4 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | A0 | UK-AIR in `collectors/archive.py` (reuses `air_quality.fetch`), default in `archive.yml`, `make backfill` loads it, `docs/data-archive.md` | done |
 | A3 | Subway simulation: `api/subway.py` (deterministic positions from SPT timetable and `at`), `collectors/subway.py` one-off loader (Overpass `railway=subway` + NaPTAN, 15 stations), `ref.subway_track` / `ref.subway_station` (migration 003); fixture-based pytest | done (run `python -m collectors.subway` once per DB to load ref) |
 | A2 | Aviation (adsb.lol poller, `ts.aircraft_positions`, METAR) | escalated: adsb.lol terms unclear (see report) |
-| A4 | API `/vehicles`, `/tracks`, SSE | waiting on A2 (subway positions are ready in `api/subway.py`) |
+| A4 | API `/vehicles`, `/tracks`, `/stream/vehicles` (subway live from the sim; aircraft empty until A2) + `tests/test_vehicles.py` | partly done (subway); aircraft waits on A2 |
