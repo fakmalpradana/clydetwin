@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { bearing, getTracks, getVehicles, interpolate, offset, parseVehicles, project, toMs, type Vehicle } from "./vehicles";
 import { FLAT_GROUND_M } from "./tileset";
+import { fixtureVehicles } from "./vehicles-fixture";
 
 const T0 = Date.parse("2026-03-01T12:00:00Z");
 const v: Vehicle = { id: "a", kind: "aircraft", label: "X", mode: "live", heading_deg: 90, speed_ms: 100, t: T0, lon: -4.4, lat: 55.87, h: 500 };
@@ -87,5 +88,22 @@ describe("fixture mode", () => {
       expect(m.h).toBeCloseTo(a.h, -1);
       expect(Math.abs(m.lon - a.lon)).toBeLessThan(0.002);
     }
+  });
+});
+
+describe("fixture matches the API contract", () => {
+  it("emits Point [lon, lat, h] features with the documented properties", () => {
+    const fc = fixtureVehicles(undefined, T0);
+    expect(fc.type).toBe("FeatureCollection");
+    for (const f of fc.features) {
+      expect(f.geometry.coordinates).toHaveLength(3);
+      expect(Object.keys(f.properties).sort()).toEqual(["heading_deg", "id", "kind", "label", "mode", "speed_ms", "t"]);
+      expect(f.properties.mode).toBe("simulated");
+    }
+  });
+  it("subway trains are deterministic and keep to the circle", () => {
+    const a = fixtureVehicles("subway", T0), b = fixtureVehicles("subway", T0);
+    expect(a).toEqual(b);
+    for (const f of a.features) expect(Math.abs(f.geometry.coordinates[1] - 55.86)).toBeLessThanOrEqual(0.0076);
   });
 });
