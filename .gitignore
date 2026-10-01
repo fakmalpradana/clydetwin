@@ -1,0 +1,20 @@
+# data and build outputs never go in git
+data/
+build/
+.env
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.tif
+*.tiff
+*.laz
+*.las
+*.vrt
+*.gpkg
+*.glb
+.DS_Store
+# tile output
+tiles/
+!tests/fixtures/**
