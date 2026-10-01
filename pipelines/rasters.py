@@ -17,11 +17,19 @@ NODATA = -9999.0
 
 
 def _run(*cmd) -> None:
-    subprocess.run([str(c) for c in cmd], check=True, capture_output=True)
+    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True)
+    if r.stdout.strip() or r.stderr.strip():
+        print(r.stdout + r.stderr, flush=True)
+    r.check_returncode()
 
 
-def _cog(src: Path, dst: Path) -> None:
-    _run("gdal_translate", "-of", "COG", "-co", "COMPRESS=DEFLATE", "-co", "PREDICTOR=2", src, dst)
+def _cog(src: Path, dst: Path, predictor: int = 3) -> None:
+    tmp = config.partial(dst)
+    _run(
+        "gdal_translate", "--config", "GDAL_CACHEMAX", "1024", "-of", "COG",
+        "-co", "COMPRESS=DEFLATE", "-co", f"PREDICTOR={predictor}", "-co", "BIGTIFF=YES", "-co", "NUM_THREADS=ALL_CPUS", src, tmp,
+    )  # fmt: skip
+    tmp.rename(dst)
 
 
 def ndsm(dsm_vrt: Path, dtm_vrt: Path, out: Path, block: int = 2048) -> None:
@@ -55,23 +63,46 @@ def run(mode: str, cfg: dict | None = None) -> dict[str, Path]:
     out = config.build_dir(mode) / "raster"
     out.mkdir(exist_ok=True)
     vrt = {}
+    tiles = {k: config.lidar_tiles(cfg, mode, k) for k in ("dsm", "dtm")}
     for kind in ("dsm", "dtm"):
         vrt[kind] = out / f"{kind}.vrt"
-        _run("gdalbuildvrt", "-overwrite", vrt[kind], *config.lidar_tiles(cfg, mode, kind))
-    nd = out / "ndsm.tif"
-    ndsm(vrt["dsm"], vrt["dtm"], nd)
-    hs = out / "hillshade.tif"
-    _run("gdaldem", "hillshade", "-multidirectional", "-compute_edges", vrt["dtm"], hs)
+        _run("gdalbuildvrt", "-overwrite", vrt[kind], *tiles[kind])
+    srcs = [*tiles["dsm"], *tiles["dtm"]]
     paths = {
         "dtm": out / "dtm.cog.tif",
         "ndsm": out / "ndsm.cog.tif",
         "hillshade": out / "hillshade.cog.tif",
     }
-    _cog(vrt["dtm"], paths["dtm"])
-    _cog(nd, paths["ndsm"])
-    _cog(hs, paths["hillshade"])
+    nd, hs = out / "ndsm.tif", out / "hillshade.tif"  # intermediates, deleted once their COG exists
+
+    def step(name, target, make):
+        if config.fresh(target, *srcs):
+            config.log(f"{name}: up to date, skipped")
+            return
+        config.log(f"{name}: start")
+        make()
+        config.log(f"{name}: done")
+
+    def make_ndsm():
+        tmp = config.partial(nd)
+        ndsm(vrt["dsm"], vrt["dtm"], tmp)
+        tmp.rename(nd)
+
+    def make_hs():
+        tmp = config.partial(hs)
+        _run("gdaldem", "hillshade", "-of", "GTiff", "-multidirectional", "-compute_edges",
+             vrt["dtm"], tmp)  # fmt: skip
+        tmp.rename(hs)
+
+    step("dtm COG", paths["dtm"], lambda: _cog(vrt["dtm"], paths["dtm"]))
+    if not config.fresh(paths["ndsm"], *srcs):
+        step("nDSM", nd, make_ndsm)
+        step("nDSM COG", paths["ndsm"], lambda: _cog(nd, paths["ndsm"]))
+    if not config.fresh(paths["hillshade"], *srcs):
+        step("hillshade", hs, make_hs)
+        step("hillshade COG", paths["hillshade"], lambda: _cog(hs, paths["hillshade"], predictor=2))
     for tmp in (nd, hs):
-        tmp.unlink()
+        tmp.unlink(missing_ok=True)
     return paths | {"dtm_vrt": vrt["dtm"]}
 
 

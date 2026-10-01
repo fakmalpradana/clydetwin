@@ -33,3 +33,22 @@ def build_dir(mode: str) -> Path:
     d = ROOT / "build" / mode
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def fresh(out: Path, *inputs: Path) -> bool:
+    """True if `out` exists and is at least as new as all inputs."""
+    if not out.exists():
+        return False
+    newest = max(p.stat().st_mtime for p in inputs)
+    return out.stat().st_mtime >= newest
+
+
+def partial(path: Path) -> Path:
+    """Temp name for atomic writes: write here, then rename, so a killed run never leaves a 'valid' file."""
+    return path.with_name(path.name + ".partial")
+
+
+def log(msg: str) -> None:
+    from datetime import datetime
+
+    print(f"[{datetime.now():%H:%M:%S}] {msg}", flush=True)

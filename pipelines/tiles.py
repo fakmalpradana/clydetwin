@@ -70,6 +70,8 @@ def load_db(mode: str) -> int:
         "PostgreSQL",
         pg,
         src,
+        "-t_srs",
+        "EPSG:4326",  # host GDAL/PROJ has the OSTN15 grid; the PostGIS image would fall back to a ~1 m-off Helmert
         "-nln",
         "buildings_src",
         "-lco",
