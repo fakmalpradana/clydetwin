@@ -18,6 +18,10 @@ jobs:
       - run: uv sync --no-dev
       - run: uv run python -m collectors.archive
         env:
+          # SEPA KiWIS rate-limits anonymous IPs (HTTP 429); add sepa_kiwis back via the
+          # ARCHIVE_SOURCES repo variable once SEPA access is sorted.
+          ARCHIVE_SOURCES: ${{ vars.ARCHIVE_SOURCES || 'open_meteo_ukmo' }}
+        env:
           R2_ACCOUNT_ENDPOINT: ${{ secrets.R2_ACCOUNT_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
