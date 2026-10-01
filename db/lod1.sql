@@ -1,5 +1,6 @@
 -- LoD1 extrusion of building footprints for pg2b3dm.
--- Input : buildings_src (loaded by ogr2ogr, EPSG:27700, one row per building, attributes from heights.py)
+-- Input : buildings_src (loaded by ogr2ogr already in EPSG:4326 via OSTN15 on the host; the in-database
+--         ST_Transform fallback only has the ~1 m-off Helmert shift, because stock PostGIS has no OS grids; one row per building, attributes from heights.py)
 -- Output: lod1 (WGS84/ETRS89 geometry, Z = ellipsoidal height). Base = ground_z_ellip, top = base + height.
 -- Geometry is a MultiPolygonZ of outward-facing walls plus a flat roof (no floor: never seen from below).
 -- ponytail: no SFCGAL in the stock PostGIS image, so walls are built by hand; ceiling = flat roofs only (LoD2 in Phase 4).
@@ -9,7 +10,7 @@ WITH b AS (
   -- real/int4 (not float8/int8): pg2b3dm 2.27 mis-aligns 8-byte metadata buffers, which fails the 3D Tiles validator.
   SELECT building_id, height::real AS height, h_max::real AS h_max, ground_z_odn::real AS ground_z_odn,
          ground_z_ellip::real AS ground_z_ellip, area_m2::real AS area_m2, height_source, lidar_year::int AS lidar_year,
-         ST_Transform(ST_ForcePolygonCCW(ST_Force2D(geom)), 4326) AS g
+         ST_ForcePolygonCCW(ST_Force2D(CASE WHEN ST_SRID(geom) = 4326 THEN geom ELSE ST_Transform(geom, 4326) END)) AS g
   FROM buildings_src
   WHERE NOT ST_IsEmpty(geom) AND ST_GeometryType(geom) = 'ST_Polygon'
 ), walls AS (
