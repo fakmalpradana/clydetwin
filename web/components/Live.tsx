@@ -100,6 +100,12 @@ export default function Live() {
       {!stations && !error && <p className="mt-8 text-sm text-muted">Loading&hellip;</p>}
 
       <div className="mt-6 grid items-start gap-4 sm:grid-cols-2">
+        {stations && !stations.some((f) => f.properties.kind === "river_level") && (
+          <section className="rounded-lg border border-line bg-panel p-4">
+            <h2 className="text-lg font-semibold">River levels</h2>
+            <p className="mt-2 text-sm text-muted">River data unavailable (SEPA access pending).</p>
+          </section>
+        )}
         {groups.map(([k, list]) => (
           <section key={k} className="rounded-lg border border-line bg-panel p-4">
             <h2 className="text-lg font-semibold">{TITLES[k].title}</h2>

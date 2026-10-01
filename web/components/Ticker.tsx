@@ -15,6 +15,7 @@ export default function Ticker({ now, tick }: { now: Now | null; tick: number })
         <span className="hidden font-mono text-muted sm:inline">cloud {w.cloud_low}/{w.cloud_mid}/{w.cloud_high}%</span>
         {wStale && <span className="rounded bg-red-400/20 px-1 text-red-200">stale</span>}
       </span>
+      {now.rivers.length === 0 && <span className="text-muted">River data unavailable (SEPA access pending)</span>}
       {now.rivers.map((r) => (
         <span key={r.id} className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLOR[r.status] }} />
