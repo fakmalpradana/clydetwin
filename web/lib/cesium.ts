@@ -37,7 +37,10 @@ export const flatTerrain = () =>
     callback: () => new Float32Array(16).fill(FLAT_GROUND_M),
   });
 
-export async function createViewer(container: HTMLElement, opts: { interactive: boolean }) {
+export async function createViewer(
+  container: HTMLElement,
+  opts: { interactive: boolean; date?: Date },
+) {
   if (hasIon) Cesium.Ion.defaultAccessToken = ION_TOKEN;
   const viewer = new Cesium.Viewer(container, {
     baseLayer: darkBasemap(),
@@ -60,7 +63,7 @@ export async function createViewer(container: HTMLElement, opts: { interactive: 
   scene.backgroundColor = Cesium.Color.fromCssColorString("#05070b");
   // Lighting from the real sun position (clock = now, UTC internally; Glasgow local time is just a display concern).
   scene.globe.enableLighting = true;
-  viewer.clock.currentTime = Cesium.JulianDate.now();
+  viewer.clock.currentTime = opts.date ? Cesium.JulianDate.fromDate(opts.date) : Cesium.JulianDate.now();
   viewer.clock.shouldAnimate = false;
   if (!opts.interactive) {
     const c = scene.screenSpaceCameraController;

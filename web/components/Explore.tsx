@@ -2,7 +2,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { cameraQuery, paramsToCamera, type CameraState } from "@/lib/camera";
+import { cameraQuery, paramsToCamera, withCamera, type CameraState } from "@/lib/camera";
+import { sceneDate } from "@/lib/time";
 import { BUILDING_FIELDS, DEFAULT_HEIGHT_COLOR, HEIGHT_RAMP, type BuildingProps } from "@/lib/tileset";
 import type * as CesiumNS from "cesium";
 
@@ -40,7 +41,7 @@ export default function Explore() {
       const lib = await import("@/lib/cesium");
       if (disposed || !container.current) return;
       setLowGpu(q.get("gpu") === "low");
-      const { viewer, terrainIsIon } = await lib.createViewer(container.current, { interactive: true });
+      const { viewer, terrainIsIon } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q) });
       if (disposed) return viewer.destroy();
       setIon(terrainIsIon);
       const C = lib.Cesium;
@@ -56,7 +57,7 @@ export default function Explore() {
       const sync = () => {
         const c = lib.getCamera(viewer);
         setCam(c);
-        window.history.replaceState(null, "", `?${cameraQuery(c)}`);
+        window.history.replaceState(null, "", withCamera(window.location.search, c));
       };
       sync();
       viewer.camera.moveEnd.addEventListener(sync);

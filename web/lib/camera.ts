@@ -60,3 +60,10 @@ export function paramsToCamera(
 export const cameraQuery = (c: CameraState) => cameraToParams(c).toString();
 
 export const hasCameraParams = (params: URLSearchParams) => KEYS.every((k) => params.has(k));
+
+/** `?search` with the camera keys replaced and every other param (t, force, gpu, ...) preserved. */
+export function withCamera(search: string, c: CameraState): string {
+  const q = new URLSearchParams(search);
+  cameraToParams(c).forEach((v, k) => q.set(k, v));
+  return `?${q.toString()}`;
+}

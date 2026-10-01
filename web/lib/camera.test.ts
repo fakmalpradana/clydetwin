@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CAMERA, cameraQuery, hasCameraParams, paramsToCamera } from "./camera";
+import { DEFAULT_CAMERA, cameraQuery, hasCameraParams, paramsToCamera, withCamera } from "./camera";
 
 describe("camera <-> query string", () => {
   it("round-trips within the encoding precision", () => {
@@ -25,5 +25,12 @@ describe("camera <-> query string", () => {
     expect(paramsToCamera("lon=abc&h=")).toEqual(DEFAULT_CAMERA);
     expect(hasCameraParams(new URLSearchParams(cameraQuery(DEFAULT_CAMERA)))).toBe(true);
     expect(hasCameraParams(new URLSearchParams("lon=1"))).toBe(false);
+  });
+
+  it("withCamera keeps unrelated params", () => {
+    const out = new URLSearchParams(withCamera("?t=2026-10-01T11:00:00Z&force=1&lon=0", DEFAULT_CAMERA));
+    expect(out.get("force")).toBe("1");
+    expect(out.get("t")).toBe("2026-10-01T11:00:00Z");
+    expect(paramsToCamera(out)).toEqual(DEFAULT_CAMERA);
   });
 });
