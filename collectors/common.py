@@ -11,7 +11,7 @@ import requests
 from pydantic import AwareDatetime, BaseModel, Field
 
 # source -> how often the collector runs (seconds). The API flags a source stale after 2x this.
-SOURCES = {"open-meteo": 1800, "uk-air": 1800, "sepa": 900}
+SOURCES = {"open-meteo": 1800, "uk-air": 1800, "sepa": 900, "adsb": 60}
 UA = {"User-Agent": "clydetwin-collectors/0.2 (+https://github.com/fakmalpradana/clydetwin)"}
 
 
