@@ -37,3 +37,10 @@ LiDAR: Crown copyright Scottish Government and Fugro (2020). Open Government Lic
 
 The generic LiDAR line above (SEPA / Scottish Water / Bluesky) covers other Scottish LiDAR phases and is not
 needed for the published Glasgow tiles; `/about/data` should show the Phase 5 line.
+
+## Basemaps (web viewer)
+
+Esri Dark Gray / Light Gray canvases: Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community.
+Esri World Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community. OpenStreetMap: (c) OpenStreetMap
+contributors (ODbL). Google Maps (optional, with a key): official Map Tiles API only, with Google's logo and copyright.
+Attribution is shown on the map for each basemap.

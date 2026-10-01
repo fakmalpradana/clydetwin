@@ -86,3 +86,6 @@ export function setParam(search: string, key: string, value: string): string {
   q.set(key, value);
   return `?${q.toString()}`;
 }
+
+/** /immersive default: oblique view north over the city centre from the Clyde, horizon and sky in frame. */
+export const IMMERSIVE_CAMERA: CameraState = { lon: -4.2575, lat: 55.8478, height: 240, heading: 12, pitch: -9 };

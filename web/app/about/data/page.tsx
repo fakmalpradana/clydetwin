@@ -26,8 +26,8 @@ export default function DataPage() {
         </li>
         <li>&copy; SEPA. Contains Historic Environment Scotland data &copy; HES.</li>
         <li>
-          Basemaps (switchable): Carto Dark Matter and Positron, &copy; OpenStreetMap contributors &copy; CARTO;
-          Esri World Imagery, Esri, Maxar, Earthstar Geographics, and the GIS User Community; OpenStreetMap,
+          Basemaps (switchable): Esri Dark Gray and Light Gray canvases, Esri, HERE, Garmin, &copy; OpenStreetMap
+          contributors, and the GIS user community; Esri World Imagery, Esri, Maxar, Earthstar Geographics, and the GIS User Community; OpenStreetMap,
           &copy; OpenStreetMap contributors (ODbL); Google Maps roadmap and satellite through the Google Map Tiles
           API, when enabled, with Google&rsquo;s own logo and copyright shown on the map.
         </li>
