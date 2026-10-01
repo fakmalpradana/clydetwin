@@ -78,6 +78,6 @@ soak-report:
 migrate:
 	set -a; . ./.env; set +a; uv run python -m db.migrate
 
-# Import the R2 raw/ archive written since P1 into the live DB (idempotent)
+# Import the R2 raw/ archive into the live DB (idempotent). Runs in the collectors image: no uv needed on the VM.
 backfill:
-	set -a; . ./.env; set +a; uv run python -m collectors.backfill
+	$(LIVE) run --rm --no-deps collectors python -m collectors.backfill
