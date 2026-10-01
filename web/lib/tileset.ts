@@ -4,6 +4,11 @@
 export const TILESET_URL =
   process.env.NEXT_PUBLIC_TILESET_URL ?? "http://localhost:8081/lod1/tileset.json";
 
+/** Our own quantized-mesh terrain (base URL or .../layer.json). Preferred over ion World Terrain when set. */
+export const TERRAIN_URL = process.env.NEXT_PUBLIC_TERRAIN_URL
+  ? process.env.NEXT_PUBLIC_TERRAIN_URL.replace(/layer\.json$/, "").replace(/\/?$/, "/")
+  : "";
+
 export const ION_TOKEN = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN ?? "";
 
 /** Per-building metadata (glTF EXT_structural_metadata property table). */

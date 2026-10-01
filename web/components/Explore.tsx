@@ -41,9 +41,9 @@ export default function Explore() {
       const lib = await import("@/lib/cesium");
       if (disposed || !container.current) return;
       setLowGpu(q.get("gpu") === "low");
-      const { viewer, terrainIsIon } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q) });
+      const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q) });
       if (disposed) return viewer.destroy();
-      setIon(terrainIsIon);
+      setIon(terrainKind !== "flat");
       const C = lib.Cesium;
       let tileset: CesiumNS.Cesium3DTileset;
       try {
@@ -52,9 +52,9 @@ export default function Explore() {
         setError(`Could not load the building tileset: ${(e as Error).message}`);
         return;
       }
-      // ponytail: debug hook for terrain/alignment checks in dev only
-      if (process.env.NODE_ENV !== "production") (window as unknown as { __cesium: unknown }).__cesium = { viewer, tileset, C };
-      api.current = { lib, viewer, tileset, ionTerrain: terrainIsIon ? viewer.terrainProvider : undefined };
+      // ponytail: debug hook for terrain/alignment checks (NEXT_PUBLIC_DEBUG_HOOKS=1)
+      if (process.env.NEXT_PUBLIC_DEBUG_HOOKS === "1") (window as unknown as { __cesium: unknown }).__cesium = { viewer, tileset, C };
+      api.current = { lib, viewer, tileset, ionTerrain: realTerrain };
       lib.setCamera(viewer, paramsToCamera(q));
       const sync = () => {
         const c = lib.getCamera(viewer);
@@ -119,7 +119,7 @@ export default function Explore() {
         <label className="flex items-center gap-2 py-1">
           <input type="checkbox" checked={buildings} onChange={(e) => setBuildings(e.target.checked)} /> Buildings (LoD1)
         </label>
-        <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs a Cesium ion token; flat ground is used instead"}>
+        <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs terrain (own or ion); flat ground is used instead"}>
           <input type="checkbox" checked={terrain && ion} disabled={!ion} onChange={(e) => setTerrain(e.target.checked)} /> Terrain{ion ? "" : " (unavailable)"}
         </label>
         <p className="mt-3 mb-1 font-medium text-muted uppercase tracking-wider">Height (m)</p>
@@ -164,7 +164,7 @@ export default function Explore() {
 
       {!ion && ready && (
         <p className="absolute left-1/2 top-3 z-10 hidden -translate-x-1/2 rounded bg-panel/85 px-3 py-1 text-[11px] text-muted sm:block">
-          No Cesium ion token: flat ground at a fixed height, no real terrain.
+          No terrain source configured: flat ground at a fixed height.
         </p>
       )}
       {!ready && !error && <p className="absolute inset-0 z-10 grid place-items-center text-sm text-muted">Loading Glasgow&hellip;</p>}
