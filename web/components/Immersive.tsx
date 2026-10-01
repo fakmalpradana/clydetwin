@@ -4,7 +4,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { cameraQuery, paramsToCamera, type CameraState } from "@/lib/camera";
+import { carry, cameraQuery, paramsToCamera, setParam, type CameraState } from "@/lib/camera";
+import { parseBasemap, type BasemapId } from "@/lib/basemap";
+import Attribution from "./Attribution";
+import BasemapPicker from "./BasemapPicker";
 import { sceneDate } from "@/lib/time";
 
 const Scene = dynamic(() => import("./ImmersiveScene"), { ssr: false });
@@ -12,7 +15,13 @@ const Scene = dynamic(() => import("./ImmersiveScene"), { ssr: false });
 export default function Immersive() {
   const router = useRouter();
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
+  const [bm, setBm] = useState<BasemapId>("dark");
   const latest = useRef<CameraState | null>(null);
+  const [cam, setCam] = useState<CameraState | null>(null);
+  useEffect(() => {
+    const h = setInterval(() => setCam(latest.current), 2000);
+    return () => clearInterval(h);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,11 +34,12 @@ export default function Immersive() {
         const tier = await getGPUTier({ benchmarksURL: "/gpu-benchmarks" }).catch(() => ({ tier: 0, isMobile: true }));
         if (cancelled) return;
         if (tier.tier < 2 || tier.isMobile) {
-          router.replace(`/explore?${cameraQuery(initial)}&gpu=low`);
+          router.replace(`/explore?${cameraQuery(initial)}&gpu=low${carry(window.location.search)}`);
           return;
         }
       }
       latest.current = initial;
+      setBm(parseBasemap(q));
       setState({ initial, date: sceneDate(q) });
     })();
     return () => {
@@ -40,7 +50,7 @@ export default function Immersive() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       {state ? (
-        <Scene initial={state.initial} date={state.date} latestRef={latest as React.MutableRefObject<CameraState>} />
+        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
@@ -50,14 +60,23 @@ export default function Immersive() {
         </Link>
         <button
           onClick={() => {
-            const t = new URLSearchParams(window.location.search).get("t");
-            router.push(`/explore${latest.current ? `?${cameraQuery(latest.current)}${t ? `&t=${encodeURIComponent(t)}` : ""}` : ""}`);
+            router.push(`/explore${latest.current ? `?${cameraQuery(latest.current)}${carry(window.location.search)}` : ""}`);
           }}
           className="pointer-events-auto rounded-md bg-panel/85 px-3 py-2 text-sm backdrop-blur hover:text-accent"
         >
           &larr; Map view
         </button>
       </header>
+      <aside className="absolute left-4 top-16 z-10 w-52 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+        <BasemapPicker
+          value={bm}
+          onChange={(id) => {
+            setBm(id);
+            window.history.replaceState(null, "", setParam(window.location.search, "bm", id));
+          }}
+        />
+      </aside>
+      <Attribution id={bm} cam={cam} className="absolute bottom-8 right-2 z-10 max-w-[60%]" />
       <footer className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-bg/60 px-4 py-1.5 text-[11px] text-muted backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. OGL v3.0. LiDAR: Scottish Government and Fugro.{" "}
         <Link href="/about/data" className="pointer-events-auto underline">Data and licences</Link>
