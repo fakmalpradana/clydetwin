@@ -2,9 +2,9 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: help setup lint test db-up db-down lod1 terrain serve-tiles
+.PHONY: help setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain
 help:
-	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles  (lod1/serve-tiles take MODE=sample|aoi)"
+	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain  (lod1/serve-tiles take MODE=sample|aoi)"
 
 setup:
 	uv sync
@@ -36,3 +36,7 @@ terrain:
 # Serve tiles for the web viewers at http://localhost:$(PORT)/lod1/tileset.json
 serve-tiles:
 	npx --yes http-server build/$(MODE)/tiles -p $(PORT) --cors -c-1
+
+# Serve terrain at http://localhost:8083/layer.json (adds the Content-Encoding header the gzipped tiles need)
+serve-terrain:
+	uv run python -m pipelines.serve_terrain $(MODE) 8083
