@@ -51,3 +51,9 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B7b | Gate fix: air source wording is UK-AIR (Defra) on /live, ticker tooltips and /about/data, licence pending confirmation | done |
 | B7c | Gate fix: pollutant values rounded to 1 decimal on /live and the ticker | done |
 | B7d | Gate fix: explicit "River data unavailable (SEPA access pending)" on /live and the ticker when there are no river stations | done |
+
+## Phase 3: Moving City (pipeline workstream, branch `p3/pipeline`)
+
+| Task | Description | Status |
+|---|---|---|
+| A0 | UK-AIR in `collectors/archive.py` (reuses `air_quality.fetch`), default in `archive.yml`, `make backfill` loads it, `docs/data-archive.md` | done |
