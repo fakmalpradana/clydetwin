@@ -18,3 +18,4 @@ Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`)
 | 1.10 | Web: `/`, `/explore`, `/about/data`, `web/lib/` | done (full city, own terrain; `NEXT_PUBLIC_TERRAIN_URL`) |
 | 1.11 | `/immersive` v0.1 (R3F, 3d-tiles-renderer, takram atmosphere); ADR-004 | done (full city, own terrain, 60 fps headless; real-GPU fps pending) |
 | 1.10b | Basemap switcher (Carto, Esri, OSM, Google via Map Tiles API) in `/explore` and `/immersive` | done (Google path untested, no key) |
+| 1.14 | README to the ROADMAP standard, media, CITATION | done (production URL and release badge pending the gate) |

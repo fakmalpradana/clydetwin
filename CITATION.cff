@@ -6,6 +6,7 @@ authors:
   - family-names: Pradana
     given-names: Fairuz Akmal
 license: AGPL-3.0-or-later
-repository-code: "https://github.com/OWNER/clydetwin"
+url: "https://clydetwin.vercel.app"
+repository-code: "https://github.com/fakmalpradana/clydetwin"
 version: 0.0.0
 date-released: "2026-10-01"
