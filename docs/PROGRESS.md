@@ -27,3 +27,4 @@ Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`)
 |---|---|---|
 | B1 | `web/lib/api.ts` typed client, stale detection, fixture mode (sample data, rebased to now) | done |
 | B2 | `/live`: weather, river, rainfall and air-quality cards, plain-SVG 24 h charts, stale badge, "sample data" banner; Lighthouse mobile 96 | done |
+| B3 | `/explore`: bottom ticker, weather widget, status-coloured river gauges (click for 24 h chart), SEPA flood-zone toggle (Flood_Maps MapServer, OGL v3 verified, attributed on `/about/data`). OS Open Rivers and greenspace deferred: they are bulk downloads that need vector tiling | done |
