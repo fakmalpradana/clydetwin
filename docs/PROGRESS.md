@@ -57,7 +57,7 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | Task | Description | Status |
 |---|---|---|
 | B1 | `web/lib/vehicles.ts`: typed client for `/vehicles` and `/tracks`, dead-reckoning and track interpolation, SSE hook, generated sample data in fixture mode (aircraft on the EGPF runway 23 approach, 4 subway trains), all labelled simulated | done |
-| B2 | `/explore` mobility layer: heading-aligned markers, live/scheduled/simulated badge, click to follow, 24 h replay slider | todo |
+| B2 | `/explore` mobility layer (`useMobility`): heading-aligned billboards coloured by mode (live/scheduled/simulated) with badge, click to follow, 24 h replay slider on the Cesium clock with `SampledPositionProperty` (aircraft only; Subway is live-only) | done (lint, tsc, build pass; browser check pending, see report) |
 | B3 | `/immersive` aircraft and subway trains | todo |
 | B4 | `/about/data` attributions (adsb.lol, OSM, NaPTAN, SPT) and "coming soon" sources | todo |
 | B5 | vitest for interpolation and fixture parsing | todo |
