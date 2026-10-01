@@ -36,14 +36,24 @@ The conversion also round-trips in `lib/three-camera.test.ts`.
 
 ## Terrain outcome
 
-- With a Cesium ion token, `/explore` uses Cesium World Terrain. `/immersive` is wired to try
-  `CesiumIonAuthPlugin` (asset 1) plus `QuantizedMeshPlugin` from 3d-tiles-renderer 0.5.3, with a neutral
-  material. **This path is untested**: no token existed when it was written. If it misbehaves, delete the `hasIon`
-  branch in `components/ImmersiveScene.tsx` and the ground plane takes over.
-- Without a token (the only case verified), both viewers use a flat ground at `FLAT_GROUND_M` (60 m ellipsoidal,
-  roughly the lowest building base in the sample): Cesium via a constant `CustomHeightmapTerrainProvider`,
-  three.js via a tangent disc. Buildings then sit on a flat map; real relief arrives with ion terrain here and own
-  DTM terrain in Phase 2.
+Verified with a real Cesium ion token (sample tileset, 5 hand-picked points plus 45 picked buildings in /explore):
+
+- `/explore` uses Cesium World Terrain and ion imagery. `/immersive` loads the same terrain through
+  `CesiumIonAuthPlugin` (asset 1). The `QuantizedMeshPlugin` must be registered from the ion plugin's
+  `assetTypeHandler` for `TERRAIN`; registering it statically as a sibling made it parse the wrong document and
+  throw. Terrain renders with a neutral material.
+- Both viewers see the same terrain: at five points the three.js raycast (terrain mesh) and Cesium
+  `sampleTerrainMostDetailed` agree within 0.3 m (80.5/80.5, 91.5/91.5, 78.6/78.6, 92.2/92.1, 85.7/85.4 m ellipsoidal).
+- **Buildings do not sit on terrain.** `ground_z_ellip` is below the terrain by 4 to 26 m (median about 14.5 m, 43 of
+  45 buildings sunk by more than 2 m) in both viewers, so footprints are partly buried. An independent DEM
+  (Open-Meteo / Copernicus, orthometric) agrees with Cesium terrain to a few metres (27, 34, 28, 33 m ODN against
+  Cesium minus a 54 m geoid of 26.5, 37.5, 24.6, 38 m), so the fault is in the tileset's ground heights, not in the
+  renderers. This is a pipeline issue (`ground_z_odn`/`ground_z_ellip`, task 1.6/1.7), escalated rather than
+  compensated for with a renderer offset.
+- Without a token (flat ground at `FLAT_GROUND_M` = 60 m, Cesium via a constant `CustomHeightmapTerrainProvider`,
+  three.js via a tangent disc) the fallback is unchanged and was verified before the token existed.
+- GlobeControls lifted the initial camera from 380 m to 433 m ellipsoidal once terrain loaded, so the first
+  frames of the two viewers differ slightly in height with terrain on.
 
 ## Other choices and caveats
 
@@ -51,8 +61,10 @@ The conversion also round-trips in `lib/three-camera.test.ts`.
   `@takram/three-geospatial` 0.9.1, `postprocessing` 6.39.5, `@react-three/fiber` 9.8.1, `cesium` 1.145.0.
 - `3d-tiles-renderer` needs `ImplicitTilingPlugin` registered explicitly for our implicit-quadtree tileset;
   without it the template URI is requested literally (404).
-- Atmosphere precomputed textures are generated on the GPU at load; the blue-noise (STBN) texture is fetched from
-  the library's GitHub media URL. `detect-gpu` fetches its benchmark table from unpkg. Self-host both if the
-  third-party requests matter.
-- Basemap is Carto dark raster tiles (OSM data), fine for a non-commercial portfolio; revisit before commercial use.
+- Third-party runtime requests: atmosphere textures are generated on the GPU, and the library's blue-noise texture is
+  only fetched when atmospheric shadows are enabled (we do not), so neither needs self-hosting. `detect-gpu` reads its
+  benchmark tables from `/gpu-benchmarks`, copied from node_modules at build (`scripts/copy-cesium.mjs`, not
+  committed). Remaining third parties: Cesium ion (terrain, imagery, with a token) and Carto raster tiles as the
+  no-token fallback basemap (OSM data; fine for a non-commercial portfolio, revisit before commercial use). The ion
+  free tier shows an "Upgrade for commercial use" credit.
 - Scope of v0.1: no clouds, facade shaders or vehicles. Shadows cover only a 1.4 km square around George Square.
