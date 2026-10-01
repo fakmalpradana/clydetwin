@@ -15,6 +15,7 @@ import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
+import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
@@ -217,6 +218,50 @@ function Gauges({ stations, tick }: { stations: StationFeature[]; tick: number }
   );
 }
 
+/**
+ * Aircraft and Subway trains from lib/vehicles, moved every frame by dead reckoning. Simple primitives, drawn about
+ * 2x real size so they read from the default camera; colour is the mode. ENU frame: x east, y north, z up, nose along +y.
+ */
+function Vehicles({ vehicles }: { vehicles: Vehicle[] }) {
+  const groups = useRef(new Map<string, Group>());
+  const latest = useRef(vehicles);
+  useEffect(() => { latest.current = vehicles; }, [vehicles]);
+  const tmp = useMemo(() => ({ m: new Matrix4(), r: new Matrix4() }), []);
+  useFrame(({ camera, size }) => {
+    const now = Date.now();
+    const wpp = (2 * Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)) / size.height; // world m per pixel, per metre of distance
+    for (const v of latest.current) {
+      const g = groups.current.get(v.id);
+      if (!g) continue;
+      const p = project(v, now);
+      WGS84_ELLIPSOID.getEastNorthUpFrame((p.lat * Math.PI) / 180, (p.lon * Math.PI) / 180, p.h, tmp.m);
+      // Keep at least ~24 px long on screen so vehicles stay visible at city scale.
+      const k = Math.max(1, (24 * wpp * camera.position.distanceTo(g.position.setFromMatrixPosition(tmp.m))) / (v.kind === "aircraft" ? 60 : 28));
+      g.matrix.copy(tmp.m.multiply(tmp.r.makeRotationZ((-v.heading_deg * Math.PI) / 180)).scale(g.scale.set(k, k, k)));
+      g.matrixWorldNeedsUpdate = true;
+      g.visible = true;
+    }
+  });
+  return (
+    <>
+      {vehicles.map((v) => (
+        <group key={v.id} ref={(g) => { if (g) { g.visible = false; groups.current.set(v.id, g); } else groups.current.delete(v.id); }} matrixAutoUpdate={false}>
+          {v.kind === "aircraft" ? (
+            <>
+              <mesh position={[0, 0, 0]}><boxGeometry args={[9, 60, 9]} /><meshBasicMaterial color={MODE_COLOR[v.mode]} /></mesh>
+              <mesh position={[0, 4, 0]}><boxGeometry args={[56, 12, 2]} /><meshBasicMaterial color={MODE_COLOR[v.mode]} /></mesh>
+              <mesh position={[0, -26, 3]}><boxGeometry args={[20, 7, 2]} /><meshBasicMaterial color={MODE_COLOR[v.mode]} /></mesh>
+            </>
+          ) : (
+            // trains run underground: drawn over the terrain so they stay visible
+            <mesh position={[0, 0, 6]} renderOrder={2}><boxGeometry args={[9, 28, 8]} /><meshBasicMaterial color={MODE_COLOR[v.mode]} depthTest={false} /></mesh>
+          )}
+        </group>
+      ))}
+    </>
+  );
+}
+
 export default function ImmersiveScene({
   initial,
   date,
@@ -224,7 +269,9 @@ export default function ImmersiveScene({
   latestRef,
   stations,
   tick,
+  vehicles,
 }: {
+  vehicles: Vehicle[];
   stations: StationFeature[];
   tick: number;
   initial: CameraState;
@@ -289,6 +336,7 @@ export default function ImmersiveScene({
           )}
         </group>
         <Gauges stations={stations} tick={tick} />
+        <Vehicles vehicles={vehicles} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />

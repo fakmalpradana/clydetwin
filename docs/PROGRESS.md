@@ -45,6 +45,9 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B2 | `/live`: weather, river, rainfall and air-quality cards, plain-SVG 24 h charts, stale badge, "sample data" banner; Lighthouse mobile 96 | done |
 | B3 | `/explore`: bottom ticker, weather widget, status-coloured river gauges (click for 24 h chart), SEPA flood-zone toggle (Flood_Maps MapServer, OGL v3 verified, attributed on `/about/data`). OS Open Rivers and greenspace deferred: they are bulk downloads that need vector tiling | done |
 | B4 | `/immersive`: river gauges as status-coloured pole markers at FLAT_GROUND_M, plus the same sample-labelled ticker | done |
+| B3b | Fix: `/immersive` vehicles scaled with camera distance (min ~24 px) so they show at city scale; the dashed line at the horizon in the test frame is a pre-existing terrain-edge artefact, present with vehicles removed | done |
+| B2b | Fix: follow camera views the vehicle from behind and above | done |
+| B2c | Subway replay computed client-side from the deterministic sim, so the slider covers aircraft and trains (approximation of the backend sim in API mode, labelled) | done |
 | B5 | vitest for `api.ts` stale logic and fixture parsing (9 tests, landed with B1); web total 22 tests | done |
 | B6 | Weather (temp, wind, precip, low/mid/high cloud, stale flag) in the bottom ticker of /explore and /immersive; cloud hidden on narrow screens | done |
 | B7a | Gate fix: /live air cards and ticker request and label PM2.5 when the site has it, else NO2 (`?param=`) | done |
@@ -61,3 +64,13 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | A3 | Subway simulation: `api/subway.py` (deterministic positions from SPT timetable and `at`), `collectors/subway.py` one-off loader (Overpass `railway=subway` + NaPTAN, 15 stations), `ref.subway_track` / `ref.subway_station` (migration 003); fixture-based pytest | done (run `python -m collectors.subway` once per DB to load ref) |
 | A2 | Aviation (adsb.lol poller, `ts.aircraft_positions`, METAR) | escalated: adsb.lol terms unclear (see report) |
 | A4 | API `/vehicles`, `/tracks`, `/stream/vehicles` (subway live from the sim; aircraft empty until A2) + `tests/test_vehicles.py` | partly done (subway); aircraft waits on A2 |
+
+## Phase 3: Moving City (web workstream, branch `p3/web`)
+
+| Task | Description | Status |
+|---|---|---|
+| B1 | `web/lib/vehicles.ts`: typed client for `/vehicles` and `/tracks`, dead-reckoning and track interpolation, SSE hook, generated sample data in fixture mode (aircraft on the EGPF runway 23 approach, 4 subway trains), all labelled simulated | done |
+| B2 | `/explore` mobility layer (`useMobility`): heading-aligned billboards coloured by mode (live/scheduled/simulated) with badge, click to follow, 24 h replay slider on the Cesium clock with `SampledPositionProperty` (aircraft only; Subway is live-only) | done (lint, tsc, build pass; browser check pending, see report) |
+| B3 | `/immersive` aircraft and Subway trains as mode-coloured primitives (no CC0 glTF used; billboards/primitives per brief), dead-reckoned every frame from `lib/vehicles`, mode legend and SAMPLE DATA label | done (lint, tsc pass; browser check pending) |
+| B4 | `/about/data`: adsb.lol and OSM (ODbL), NaPTAN (OGL), SPT headway, SAMPLE DATA note, mode badge explainer; bus, rail, traffic and car parks marked coming soon | done |
+| B5 | vitest `lib/vehicles.test.ts` (13 tests): dead reckoning, track interpolation, timestamp units, parsing, fixture determinism, glide-slope heights, contract shape; web total 37 | done |
