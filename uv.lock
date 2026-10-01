@@ -267,6 +267,8 @@ live = [
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
     { name = "requests" },
+    { name = "shapely" },
+    { name = "tzdata" },
     { name = "uvicorn" },
 ]
 
@@ -295,6 +297,8 @@ live = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "requests", specifier = ">=2.34.2" },
+    { name = "shapely", specifier = ">=2.0" },
+    { name = "tzdata" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
 

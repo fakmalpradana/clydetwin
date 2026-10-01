@@ -22,7 +22,7 @@ dependencies = [
 [dependency-groups]
 dev = ["pytest", "ruff", "httpx"]
 # runtime of the live stack (api + collectors); the Docker image installs only this group
-live = ["fastapi>=0.115", "uvicorn>=0.30", "psycopg[binary]>=3.2", "requests>=2.34.2", "boto3>=1.43.106"]
+live = ["fastapi>=0.115", "uvicorn>=0.30", "psycopg[binary]>=3.2", "requests>=2.34.2", "boto3>=1.43.106", "shapely>=2.0", "tzdata"]
 
 [tool.uv]
 default-groups = ["dev", "live"]
