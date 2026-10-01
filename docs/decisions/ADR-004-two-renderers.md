@@ -69,6 +69,17 @@ measured). Production values over R2 and a real network will be slower. `/explor
 Towers on podiums are drawn at the 70th-percentile block height. The info panel now says so and shows `h_max`; `h_p90`
 is shown only if a tile carries it (the current tiles do not). Full towers wait for LoD2.
 
+## Basemap switcher
+Carto Dark Matter (default), Carto Positron, Esri World Imagery and OpenStreetMap, plus Google roadmap/satellite when
+`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is set (hidden otherwise). Google is used only through the official Map Tiles API
+(`createSession`, then `2dtiles/{z}/{x}/{y}?session&key`, copyright from the viewport endpoint); never the unofficial
+`mt*.google.com/vt` URLs. The Google key path is implemented but untested (no key); the wordmark is plain text until the
+official logo asset is added. The choice is `bm=` in the query string and travels with `t=` across the viewer switch.
+`/explore` uses Cesium imagery layers; `/immersive` uses `ImageOverlayPlugin` + `XYZTilesOverlay`, which 3d-tiles-renderer
+0.5.3 supports on quantized-mesh terrain (verified with Esri, Carto, OSM on our terrain, 60 fps headless). Where there
+is no terrain (flat ground plane) the ground stays plain. Attribution is our own overlay for every basemap. OSM's public
+tile server and Carto's free tiles suit a low-traffic portfolio; revisit before heavy use.
+
 ## Other choices and caveats
 
 - Pinned: `three` 0.186.1, `3d-tiles-renderer` 0.5.3, `@takram/three-atmosphere` 0.19.1,

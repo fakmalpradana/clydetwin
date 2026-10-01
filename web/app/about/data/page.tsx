@@ -25,7 +25,14 @@ export default function DataPage() {
           Scottish Water (2012); Scottish Government / Bluesky.
         </li>
         <li>&copy; SEPA. Contains Historic Environment Scotland data &copy; HES.</li>
-        <li>Terrain and imagery (with a Cesium ion token): Cesium World Terrain and Bing Maps imagery via Cesium ion, shown with Cesium&rsquo;s own credits. Fallback basemap without a token: &copy; OpenStreetMap contributors, &copy; CARTO.</li>
+        <li>
+          Basemaps (switchable): Carto Dark Matter and Positron, &copy; OpenStreetMap contributors &copy; CARTO;
+          Esri World Imagery, Esri, Maxar, Earthstar Geographics, and the GIS User Community; OpenStreetMap,
+          &copy; OpenStreetMap contributors (ODbL); Google Maps roadmap and satellite through the Google Map Tiles
+          API, when enabled, with Google&rsquo;s own logo and copyright shown on the map.
+        </li>
+        <li>Terrain: ClydeTwin terrain built from the Scottish LiDAR DTM; Cesium World Terrain via Cesium ion is only a fallback.</li>
+
         <li>Weather data by Open-Meteo.com (CC BY 4.0), source: UK Met Office (later phases).</li>
       </ul>
 
