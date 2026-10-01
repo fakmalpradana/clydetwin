@@ -119,3 +119,15 @@ describe("subwayTracks (client-side replay)", () => {
     }
   });
 });
+
+describe("null heading and speed", () => {
+  const f = { type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [-4.43, 55.87, 62] as [number, number, number] },
+    properties: { id: "ac", kind: "aircraft" as const, label: "EZY653E", mode: "live" as const, heading_deg: null, speed_ms: null, t: "2026-03-01T12:00:00Z" } };
+  it("parses and holds still instead of dead-reckoning", () => {
+    const [a] = parseVehicles({ type: "FeatureCollection", features: [f] });
+    expect(a.heading_deg).toBeNull();
+    expect(project(a, T0 + 10_000)).toEqual({ lon: -4.43, lat: 55.87, h: 62 });
+    expect(project({ ...a, speed_ms: 5 }, T0 + 10_000).lon).toBe(-4.43); // speed but no heading
+    expect(project({ ...a, heading_deg: 90, speed_ms: null }, T0 + 10_000).lon).toBe(-4.43);
+  });
+});

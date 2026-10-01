@@ -237,7 +237,7 @@ function Vehicles({ vehicles }: { vehicles: Vehicle[] }) {
       WGS84_ELLIPSOID.getEastNorthUpFrame((p.lat * Math.PI) / 180, (p.lon * Math.PI) / 180, p.h, tmp.m);
       // Keep at least ~24 px long on screen so vehicles stay visible at city scale.
       const k = Math.max(1, (24 * wpp * camera.position.distanceTo(g.position.setFromMatrixPosition(tmp.m))) / (v.kind === "aircraft" ? 60 : 28));
-      g.matrix.copy(tmp.m.multiply(tmp.r.makeRotationZ((-v.heading_deg * Math.PI) / 180)).scale(g.scale.set(k, k, k)));
+      g.matrix.copy(tmp.m.multiply(tmp.r.makeRotationZ(v.heading_deg == null ? 0 : (-v.heading_deg * Math.PI) / 180)).scale(g.scale.set(k, k, k)));
       g.matrixWorldNeedsUpdate = true;
       g.visible = true;
     }

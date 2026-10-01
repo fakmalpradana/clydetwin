@@ -3,7 +3,7 @@
 // shared by /explore and /immersive. With NEXT_PUBLIC_API_URL unset it serves a generated sample (lib/vehicles-fixture.ts).
 import { API_URL, FIXTURE } from "./api";
 import { bearing, offset } from "./vehicle-geo";
-import { fixtureTracks, fixtureVehicles } from "./vehicles-fixture";
+import { fixtureTracks, fixtureVehicles, subwayTracks } from "./vehicles-fixture";
 
 export { bearing, offset };
 
@@ -15,8 +15,9 @@ export interface Vehicle {
   kind: VKind;
   label: string;
   mode: Mode;
-  heading_deg: number;
-  speed_ms: number;
+  /** Null when unknown (e.g. a taxiing aircraft). */
+  heading_deg: number | null;
+  speed_ms: number | null;
   /** Sample time, epoch ms. */
   t: number;
   lon: number;
@@ -28,7 +29,7 @@ export interface Vehicle {
 export interface VehicleFeature {
   type: "Feature";
   geometry: { type: "Point"; coordinates: [number, number, number] };
-  properties: { id: string; kind: VKind; label: string; mode: Mode; heading_deg: number; speed_ms: number; t: string };
+  properties: { id: string; kind: VKind; label: string; mode: Mode; heading_deg: number | null; speed_ms: number | null; t: string };
 }
 export interface VehicleCollection { type: "FeatureCollection"; features: VehicleFeature[] }
 /** A track sample: [t, lon, lat, h]. t is epoch seconds or ms (numbers) or an ISO string. */
@@ -47,7 +48,7 @@ export function parseVehicles(fc: VehicleCollection): Vehicle[] {
     const t = Date.parse(p.t);
     return Number.isNaN(t) || ![lon, lat, h].every(Number.isFinite)
       ? []
-      : [{ id: p.id, kind: p.kind, label: p.label, mode: p.mode, heading_deg: p.heading_deg, speed_ms: p.speed_ms, t, lon, lat, h }];
+      : [{ id: p.id, kind: p.kind, label: p.label, mode: p.mode, heading_deg: p.heading_deg ?? null, speed_ms: p.speed_ms ?? null, t, lon, lat, h }];
   });
 }
 
@@ -57,7 +58,7 @@ export const MAX_EXTRAPOLATE_S = 30;
 /** Position of a vehicle at `atMs`, dead-reckoned from its last sample along heading and speed (height held). */
 export function project(v: Vehicle, atMs: number): { lon: number; lat: number; h: number } {
   const dt = Math.min(Math.max((atMs - v.t) / 1000, 0), MAX_EXTRAPOLATE_S);
-  const p = dt && v.speed_ms ? offset(v.lon, v.lat, v.heading_deg, v.speed_ms * dt) : v;
+  const p = dt && v.speed_ms && v.heading_deg != null ? offset(v.lon, v.lat, v.heading_deg, v.speed_ms * dt) : v;
   return { lon: p.lon, lat: p.lat, h: v.h };
 }
 
@@ -84,8 +85,12 @@ export const getVehicles = async (kind?: VKind, at?: Date): Promise<Vehicle[]> =
   parseVehicles(await get<VehicleCollection>(`/vehicles?${kind ? `kind=${kind}&` : ""}${at ? `at=${at.toISOString()}` : ""}`, () => fixtureVehicles(kind, at?.getTime() ?? Date.now())));
 
 /** Aircraft tracks for the time slider; the API caps the window at 24 h. */
-export const getTracks = (from: Date, to: Date): Promise<Tracks> =>
-  get<Tracks>(`/tracks?kind=aircraft&from=${from.toISOString()}&to=${to.toISOString()}`, () => fixtureTracks(from.getTime(), to.getTime()));
+export const getTracks = (from: Date, to: Date, kind: VKind = "aircraft"): Promise<Tracks> =>
+  get<Tracks>(`/tracks?kind=${kind}&from=${from.toISOString()}&to=${to.toISOString()}`, () => (kind === "aircraft" ? fixtureTracks(from.getTime(), to.getTime()) : subwayTracks(from.getTime(), to.getTime()).tracks));
+
+/** Subway tracks carry no label: derive it from the id (`subway:inner:...` from the API, `fx-sub-N` in fixtures). */
+export const isSubwayId = (id: string) => id.startsWith("subway:") || id.startsWith("fx-sub-");
+export const subwayLabel = (id: string) => (id.startsWith("subway:") ? `${id.split(":")[1] === "outer" ? "Outer" : "Inner"} circle` : subwayTracks(0, 0).labels[id] ?? "Subway");
 
 /** SSE URL for live updates, or null in fixture mode (poll instead). */
 export const STREAM_URL = FIXTURE ? null : `${API_URL}/api/v1/stream/vehicles`;
