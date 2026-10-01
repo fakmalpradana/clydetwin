@@ -57,6 +57,7 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | Task | Description | Status |
 |---|---|---|
 | A0 | UK-AIR in `collectors/archive.py` (reuses `air_quality.fetch`), default in `archive.yml`, `make backfill` loads it, `docs/data-archive.md` | done |
+| A1 | AOI extended to Glasgow Airport: `aoi.extra` bbox (E244000-251000, N665000-669500) unioned into the AOI via `pipelines/config.yaml` (AOI 224 to 254 km2; 2 + 3 extra LiDAR tiles). Re-ran `make lod1` + `make terrain`: 86,286 footprints (v1 81,131, +5,155), 0 dropped, default height 3.02% (v1 2.99%), 3d-tiles-validator 0 errors, 408 tiles / 96.3 MB, terrain 102,323 tiles (ground vs terrain check within 0.42 m). Published to `lod1/v2/` and `terrain/v2/` only; v1 untouched. Fix: footprints now rebuild when the AOI changes | done |
 | A3 | Subway simulation: `api/subway.py` (deterministic positions from SPT timetable and `at`), `collectors/subway.py` one-off loader (Overpass `railway=subway` + NaPTAN, 15 stations), `ref.subway_track` / `ref.subway_station` (migration 003); fixture-based pytest | done (run `python -m collectors.subway` once per DB to load ref) |
 | A2 | Aviation (adsb.lol poller, `ts.aircraft_positions`, METAR) | escalated: adsb.lol terms unclear (see report) |
 | A4 | API `/vehicles`, `/tracks`, `/stream/vehicles` (subway live from the sim; aircraft empty until A2) + `tests/test_vehicles.py` | partly done (subway); aircraft waits on A2 |
