@@ -7,7 +7,7 @@ Pipeline workstream A (branch `p1/pipeline`). Status: todo / doing / done.
 | Task | Description | Status |
 |---|---|---|
 | 1.1 | Scaffold | done |
-| 1.2 | Data verification spike | todo |
+| 1.2 | Data verification spike | done |
 | 1.3 | AOI | todo |
 | 1.4 | Rasters (VRT, nDSM, COG) | todo |
 | 1.5 | Footprints | todo |
