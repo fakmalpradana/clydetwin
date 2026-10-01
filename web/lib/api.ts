@@ -37,7 +37,8 @@ export interface Health {
 }
 
 /** Expected update interval per kind, in seconds. Open-Meteo and SAQD are hourly, SEPA is 15-minute. */
-export const INTERVAL_S: Record<Kind, number> = { river_level: 900, rainfall: 900, weather: 3600, air_quality: 3600 };
+// air_quality matches the API (UK-AIR publishes 1–2 h late).
+export const INTERVAL_S: Record<Kind, number> = { river_level: 900, rainfall: 900, weather: 3600, air_quality: 7200 };
 
 export const ageSeconds = (t: string, now = Date.now()) => Math.max(0, (now - Date.parse(t)) / 1000);
 

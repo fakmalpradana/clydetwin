@@ -10,7 +10,8 @@ describe("stale detection", () => {
     expect(isStale(ago(1700), "river_level", T0)).toBe(false);
     expect(isStale(ago(1900), "river_level", T0)).toBe(true);
     expect(isStale(ago(7000), "weather", T0)).toBe(false);
-    expect(isStale(ago(7300), "air_quality", T0)).toBe(true);
+    expect(isStale(ago(14000), "air_quality", T0)).toBe(false);
+    expect(isStale(ago(14500), "air_quality", T0)).toBe(true);
   });
   it("treats missing or invalid timestamps as stale", () => {
     expect(isStale(null, "weather", T0)).toBe(true);
