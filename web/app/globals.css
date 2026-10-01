@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #07090d;
+  --panel: #0e1218;
+  --line: #1d2530;
+  --fg: #e6e9ef;
+  --muted: #8b95a5;
+  --accent: #5ee0c0;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans), system-ui, sans-serif; }
+
+/* Cesium chrome: dark, compact, attribution kept visible */
+.cesium-viewer-bottom { background: rgba(7, 9, 13, 0.7); font-size: 11px; }
+.cesium-credit-textContainer, .cesium-credit-text, .cesium-credit-expand-link { color: var(--muted) !important; }
+.cesium-credit-logoContainer { display: none !important; }
+.cesium-widget-credits a { color: var(--muted) !important; }

@@ -18,3 +18,5 @@ __pycache__/
 # tile output
 tiles/
 !tests/fixtures/**
+# the /about/data route is source, not data
+!web/app/about/data/
