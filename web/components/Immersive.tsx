@@ -11,12 +11,17 @@ import BasemapPicker from "./BasemapPicker";
 import { sceneTime } from "@/lib/time";
 import { useConditions } from "@/lib/useConditions";
 import Ticker from "./Ticker";
+import { useVehicles } from "@/lib/useVehicles";
+import { FIXTURE } from "@/lib/api";
+import { MODE_COLOR, MODE_LABEL, type Mode } from "@/lib/vehicles";
 
 const Scene = dynamic(() => import("./ImmersiveScene"), { ssr: false });
 
 export default function Immersive() {
   const router = useRouter();
   const { stations, now: nowData, tick } = useConditions();
+  const vehicles = useVehicles();
+  const modes = [...new Set(vehicles.map((v) => v.mode))] as Mode[];
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
   const [bm, setBm] = useState<BasemapId>("esri");
   const [illustrative, setIllustrative] = useState(false);
@@ -56,7 +61,7 @@ export default function Immersive() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       {state ? (
-        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} />
+        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
@@ -81,6 +86,13 @@ export default function Immersive() {
             window.history.replaceState(null, "", setParam(window.location.search, "bm", id));
           }}
         />
+        {vehicles.length > 0 && (
+          <p className="mt-3 flex flex-wrap items-center gap-x-3 text-[10px] text-muted">
+            <span className="font-medium uppercase tracking-wider">Aircraft and Subway</span>
+            {modes.map((m) => (<span key={m} className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full" style={{ background: MODE_COLOR[m] }} />{MODE_LABEL[m]}</span>))}
+            {FIXTURE && <span className="rounded bg-amber-400/20 px-1.5 py-0.5 font-medium text-amber-200">SAMPLE DATA</span>}
+          </p>
+        )}
       </aside>
       {illustrative && (
         <p className="absolute right-4 top-14 z-10 rounded bg-bg/60 px-2 py-1 text-[11px] text-muted backdrop-blur">
