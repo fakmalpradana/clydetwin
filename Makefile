@@ -2,7 +2,7 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
+.PHONY: live-up live-down live-logs migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
 help:
 	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
@@ -54,3 +54,25 @@ publish:
 	set -a; . ./.env; set +a; \
 	uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1 && \
 	uv run python -m pipelines.publish build/$(MODE)/terrain terrain
+
+# ---- Phase 2 live stack (see deploy/README.md) ----
+LIVE = docker compose -f docker-compose.live.yml
+
+# db + api (runs migrations) + collectors + caddy
+live-up:
+	$(LIVE) up -d --build --wait db api
+	$(LIVE) up -d --build
+
+live-down:
+	$(LIVE) down
+
+live-logs:
+	$(LIVE) logs -f --tail=100 api collectors
+
+# Apply db/migrations/*.sql to DATABASE_URL (the api container also does this at start)
+migrate:
+	set -a; . ./.env; set +a; uv run python -m db.migrate
+
+# Import the R2 raw/ archive written since P1 into the live DB (idempotent)
+backfill:
+	set -a; . ./.env; set +a; uv run python -m collectors.backfill

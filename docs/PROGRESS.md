@@ -20,3 +20,11 @@ Pipeline workstream A (branch `p1/pipeline`); web workstream B (branch `p1/web`)
 | 1.11 | `/immersive` v0.1 (R3F, 3d-tiles-renderer, takram atmosphere); ADR-004 | done (full city, own terrain, 60 fps headless; real-GPU fps pending) |
 | 1.10b | Basemap switcher (Carto, Esri, OSM, Google via Map Tiles API) in `/explore` and `/immersive` | done (Google path untested, no key) |
 | 1.14 | README to the ROADMAP standard, media, CITATION | done (production URL and release badge pending the gate) |
+
+## Phase 2: Glasgow Now
+
+Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). Brief: `docs/phases/P2.md`.
+
+| Task | Description | Status |
+|---|---|---|
+| A1 | `docker-compose.live.yml`: TimescaleDB+PostGIS, api, collectors, Caddy (db verified; api/collectors land in A4/A6) | done |
