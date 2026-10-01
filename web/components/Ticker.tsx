@@ -23,7 +23,7 @@ export default function Ticker({ now, tick }: { now: Now | null; tick: number })
       ))}
       {now.air.map((a) => {
         const p = airPollutant(a);
-        return p && <span key={a.id} className="text-muted">{POLLUTANT_LABEL[p]} {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{a[p]}</b></span>;
+        return p && <span key={a.id} className="text-muted" title={`UK-AIR (Defra), provisional, ${ageLabel(a.t, tick)}`}>{POLLUTANT_LABEL[p]} {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{a[p]}</b></span>;
       })}
       <span className="text-muted">updated {ageLabel(t, tick)}</span>
     </div>

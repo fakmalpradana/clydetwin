@@ -11,7 +11,7 @@ const TITLES: Record<Kind, { title: string; note: string }> = {
   weather: { title: "Weather", note: "Model forecast (Open-Meteo, UK Met Office UKV), not a station measurement." },
   river_level: { title: "River levels", note: "SEPA gauge readings. Provisional data, may be revised; not a flood warning." },
   rainfall: { title: "Rainfall", note: "SEPA rain gauge, 15-minute totals. Provisional." },
-  air_quality: { title: "Air quality", note: "PM2.5 where the site measures it, otherwise NO₂; each card names the pollutant shown." },
+  air_quality: { title: "Air quality", note: "UK-AIR (Defra), provisional and not ratified. PM2.5 where the site measures it, otherwise NO₂; each card names the pollutant shown." },
 };
 
 function Chip({ status }: { status: string }) {

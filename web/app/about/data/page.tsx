@@ -36,7 +36,7 @@ export default function DataPage() {
         <li>Weather: Open-Meteo.com (CC BY 4.0), model data from the UK Met Office.</li>
         <li>River levels and rainfall: SEPA KiWIS, &copy; SEPA, OGL v3.0. Provisional data.</li>
         <li>Flood zones (optional layer on /explore): SEPA Flood Maps, &copy; SEPA 2025, licensed under the Open Government Licence v3.0, served directly from SEPA&rsquo;s public map service (river high and medium likelihood, coastal medium likelihood). Indicative only; not for property or insurance decisions.</li>
-        <li>Air quality: Scottish Air Quality Database (scottishairquality.scot), provisional and not ratified, subject to the source terms on that site.</li>
+        <li>Air quality: UK-AIR (Defra) via its Sensor Observation Service API. Contains public sector information licensed under the Open Government Licence v3.0 (UK-AIR, Defra) &mdash; licence pending confirmation. Provisional, not ratified.</li>
       </ul>
 
       <h2 className="mt-10 text-lg font-semibold">Licences</h2>
