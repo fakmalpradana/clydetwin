@@ -27,7 +27,7 @@ export default function Home() {
       </div>
       <footer className="absolute bottom-0 z-10 w-full px-4 py-3 sm:px-10 text-[11px] leading-snug text-muted bg-bg/60 backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. Contains public sector information
-        licensed under the Open Government Licence v3.0. LiDAR: Scottish Government and Fugro.{" "}
+        licensed under the Open Government Licence v3.0. LiDAR: Scottish Government and Fugro. Basemap &copy; OpenStreetMap contributors &copy; CARTO.{" "}
         <Link href="/about/data" className="underline hover:text-fg">Data and licences</Link>
       </footer>
     </main>

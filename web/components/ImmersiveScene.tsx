@@ -6,9 +6,10 @@ import { ToneMappingMode } from "postprocessing";
 import { AerialPerspective, Atmosphere, Sky, SkyLight, SunLight } from "@takram/three-atmosphere/r3f";
 import { GlobeControls, TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID, type TilesRenderer as TilesRendererImpl } from "3d-tiles-renderer/three";
-import { CesiumIonAuthPlugin, QuantizedMeshPlugin } from "3d-tiles-renderer/plugins";
+import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
+import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
@@ -32,7 +33,6 @@ const registerOwnTerrain = (t: TilesRendererImpl | null) => {
 };
 
 const material = new MeshStandardMaterial({ color: "#b9bec7", roughness: 0.9, metalness: 0, flatShading: true });
-const terrainMaterial = new MeshStandardMaterial({ color: "#2a2f38", roughness: 1, metalness: 0 });
 
 const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
   e.scene.traverse((o) => {
@@ -43,7 +43,18 @@ const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
     }
   });
 const onBuildings = neutralize(material);
-const onTerrain = neutralize(terrainMaterial);
+// Terrain keeps the material the quantized-mesh loader created: ImageOverlayPlugin wraps it to drape the basemap,
+// and swapping in a shared material would drop that.
+const onTerrain = (e: { scene: Object3D }) =>
+  e.scene.traverse((o) => {
+    const mesh = o as Mesh;
+    if (mesh.isMesh) {
+      mesh.receiveShadow = true;
+      const m = mesh.material as MeshStandardMaterial;
+      m.roughness = 1;
+      m.metalness = 0;
+    }
+  });
 
 /** Place the camera from the shared state once, and publish its state (4 Hz) for the Explore switch + URL. */
 function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: MutableRefObject<CameraState> }) {
@@ -69,6 +80,34 @@ function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: M
     latestRef.current = cameraToState(camera);
     window.history.replaceState(null, "", withCamera(window.location.search, latestRef.current));
   });
+  return null;
+}
+
+/** Drapes the chosen basemap on the terrain tiles as an XYZ image overlay (swapped when the basemap changes). */
+function BasemapOverlay({ tiles, id }: { tiles: TilesRendererImpl | null; id: BasemapId }) {
+  const gl = useThree((s) => s.gl);
+  const plugin = useRef<ImageOverlayPlugin | null>(null);
+  const overlay = useRef<XYZTilesOverlay | null>(null);
+  useEffect(() => {
+    if (!tiles) return;
+    let cancelled = false;
+    (async () => {
+      const b = getBasemap(id);
+      const { url, subdomains } = await resolveTemplate(b);
+      if (cancelled) return;
+      if (!plugin.current) {
+        plugin.current = new ImageOverlayPlugin({ overlays: [], renderer: gl });
+        tiles.registerPlugin(plugin.current);
+      }
+      if (overlay.current) plugin.current.deleteOverlay(overlay.current);
+      // 3d-tiles-renderer has no {s} support: use the first subdomain.
+      overlay.current = new XYZTilesOverlay({ url: url.replace("{s}", subdomains?.[0] ?? ""), levels: b.maxLevel + 1 });
+      plugin.current.addOverlay(overlay.current);
+    })().catch((e) => console.warn("basemap overlay failed", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [tiles, id, gl]);
   return null;
 }
 
@@ -110,13 +149,20 @@ function GroundPlane() {
 export default function ImmersiveScene({
   initial,
   date,
+  basemap,
   latestRef,
 }: {
   initial: CameraState;
   date: Date;
+  basemap: BasemapId;
   latestRef: MutableRefObject<CameraState>;
 }) {
   const [world, setWorld] = useState<Group | null>(null);
+  const [terrainTiles, setTerrainTiles] = useState<TilesRendererImpl | null>(null);
+  const ownTerrainRef = useCallback((t: TilesRendererImpl | null) => {
+    registerOwnTerrain(t);
+    setTerrainTiles(t);
+  }, []);
   const anchor = useMemo(
     () =>
       WGS84_ELLIPSOID.getCartographicToPosition(
@@ -160,16 +206,17 @@ export default function ImmersiveScene({
           </TilesRenderer>
           {TERRAIN_URL ? (
             // Our own quantized-mesh terrain (no ion auth). Outside its extent there is simply no ground.
-            <TilesRenderer ref={registerOwnTerrain} key="own-terrain" url={TERRAIN_URL} onLoadModel={onTerrain} />
+            <TilesRenderer ref={ownTerrainRef} key="own-terrain" url={TERRAIN_URL} onLoadModel={onTerrain} />
           ) : hasIon ? (
             // Cesium World Terrain (ion asset 1); the ion plugin registers the quantized-mesh plugin once it sees TERRAIN.
-            <TilesRenderer key="terrain" onLoadModel={onTerrain}>
+            <TilesRenderer ref={setTerrainTiles} key="terrain" onLoadModel={onTerrain}>
               <TilesPlugin plugin={CesiumIonAuthPlugin} args={[ionArgs]} />
             </TilesRenderer>
           ) : (
             <GroundPlane />
           )}
         </group>
+        <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />
         <EffectComposer multisampling={0}>
