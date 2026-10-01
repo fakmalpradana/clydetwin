@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS lod1;
 CREATE TABLE lod1 AS
 WITH b AS (
   -- real/int4 (not float8/int8): pg2b3dm 2.27 mis-aligns 8-byte metadata buffers, which fails the 3D Tiles validator.
-  SELECT building_id, height::real AS height, h_max::real AS h_max, ground_z_odn::real AS ground_z_odn,
+  SELECT building_id, height::real AS height, h_max::real AS h_max, h_p90::real AS h_p90, ground_z_odn::real AS ground_z_odn,
          ground_z_ellip::real AS ground_z_ellip, area_m2::real AS area_m2, height_source, lidar_year::int AS lidar_year,
          ST_ForcePolygonCCW(ST_Force2D(CASE WHEN ST_SRID(geom) = 4326 THEN geom ELSE ST_Transform(geom, 4326) END)) AS g
   FROM buildings_src
@@ -29,11 +29,11 @@ WITH b AS (
          ST_Translate(ST_Force3DZ(g, ground_z_ellip), 0, 0, height) AS face
   FROM b
 )
-SELECT b.building_id, b.height, b.h_max, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
+SELECT b.building_id, b.height, b.h_max, b.h_p90, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
        b.height_source, b.lidar_year,
        ST_SetSRID(ST_Collect(f.face), 4326) AS geom
 FROM b
 JOIN (SELECT * FROM walls UNION ALL SELECT * FROM roofs) f USING (building_id)
-GROUP BY b.building_id, b.height, b.h_max, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
+GROUP BY b.building_id, b.height, b.h_max, b.h_p90, b.ground_z_odn, b.ground_z_ellip, b.area_m2,
          b.height_source, b.lidar_year;
 CREATE INDEX ON lod1 USING gist (geom);
