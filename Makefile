@@ -2,7 +2,7 @@
 # MODE: sample = one 1 km tile (George Square); aoi = all Glasgow City + 500 m
 MODE ?= sample
 PORT ?= 8081
-.PHONY: help setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish
+.PHONY: help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
 help:
 	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
@@ -40,6 +40,14 @@ serve-tiles:
 # Serve terrain at http://localhost:8083/layer.json (adds the Content-Encoding header the gzipped tiles need)
 serve-terrain:
 	uv run python -m pipelines.serve_terrain $(MODE) 8083
+
+# Rebuild only the 3D Tiles from existing build/$(MODE)/heights.gpkg (PostGIS, pg2b3dm, validator)
+tiles: db-up
+	uv run python -m pipelines.tiles $(MODE)
+
+# Upload only the LoD1 tiles
+publish-lod1:
+	set -a; . ./.env; set +a; uv run python -m pipelines.publish build/$(MODE)/tiles/lod1 lod1
 
 # Upload MODE tiles + terrain to Cloudflare R2 (needs R2_* in .env)
 publish:

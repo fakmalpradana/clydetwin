@@ -17,7 +17,9 @@ MIN_COMPLETENESS = 0.98  # Gate P1: >= 98% of footprints must be in the tileset
 # 1.9 MB; 500 gives 389 tiles up to 0.76 MB (mean 0.23 MB), so first paint needs only small requests. Root geometric
 # error 1500 m (about the AOI half-extent) keeps content-less top levels traversing down to the leaf tiles.
 PG2B3DM_TUNING = ["--max_features_per_tile", "500", "-g", "1500"]
-ATTRS = "building_id,height,h_max,ground_z_odn,ground_z_ellip,area_m2,height_source,lidar_year"
+ATTRS = (
+    "building_id,height,h_max,h_p90,ground_z_odn,ground_z_ellip,area_m2,height_source,lidar_year"
+)
 DB = {
     "user": os.environ.get("POSTGRES_USER", "clydetwin"),
     "password": os.environ.get("POSTGRES_PASSWORD", "clydetwin_local"),
