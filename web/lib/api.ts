@@ -76,6 +76,8 @@ async function get<T>(path: string, fixture: () => Promise<T>): Promise<T> {
 export const getStations = () => get<Stations>("/stations", async () => (await import("./fixtures/stations.json")).default as Stations);
 export const getNow = () => get<Now>("/now", async () => (await import("./fixtures/now.json")).default as Now);
 export const getHealth = () => get<Health>("/health", async () => (await import("./fixtures/health.json")).default as Health);
+/** One decimal place (pollutant values arrive as 8.033 etc.). */
+export const r1 = (n: number) => Math.round(n * 10) / 10;
 export type Pollutant = "pm25" | "no2";
 export const POLLUTANT_LABEL: Record<Pollutant, string> = { pm25: "PM2.5", no2: "NO₂" };
 /** The pollutant to show for a site: PM2.5 when it has it, else NO2 (either may be null in /now.air). */

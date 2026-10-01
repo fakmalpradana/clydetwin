@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { FIXTURE, POLLUTANT_LABEL, airPollutant, ageLabel, isStale, type Now } from "@/lib/api";
+import { FIXTURE, POLLUTANT_LABEL, airPollutant, r1, ageLabel, isStale, type Now } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 
 /** Bottom strip from /now: river levels and air quality at a glance. */
@@ -23,7 +23,7 @@ export default function Ticker({ now, tick }: { now: Now | null; tick: number })
       ))}
       {now.air.map((a) => {
         const p = airPollutant(a);
-        return p && <span key={a.id} className="text-muted" title={`UK-AIR (Defra), provisional, ${ageLabel(a.t, tick)}`}>{POLLUTANT_LABEL[p]} {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{a[p]}</b></span>;
+        return p && <span key={a.id} className="text-muted" title={`UK-AIR (Defra), provisional, ${ageLabel(a.t, tick)}`}>{POLLUTANT_LABEL[p]} {a.name.replace("Glasgow ", "")} <b className="font-mono text-fg">{r1(a[p]!)}</b></span>;
       })}
       <span className="text-muted">updated {ageLabel(t, tick)}</span>
     </div>

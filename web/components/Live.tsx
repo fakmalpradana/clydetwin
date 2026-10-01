@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FIXTURE, ageLabel, effectiveStatus, getNow, getStations, getTimeseries, airPollutant, POLLUTANT_LABEL, type Kind, type Pollutant, type Now, type StationFeature, type Timeseries } from "@/lib/api";
+import { FIXTURE, ageLabel, effectiveStatus, getNow, getStations, getTimeseries, airPollutant, r1, POLLUTANT_LABEL, type Kind, type Pollutant, type Now, type StationFeature, type Timeseries } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import Sparkline from "./Sparkline";
 
@@ -32,7 +32,7 @@ function Station({ f, series, now, pollutant }: { f: StationFeature; series?: Ti
         <Chip status={st} />
       </div>
       <p className="mt-1 font-mono text-2xl">
-        {p.latest ? p.latest.value : "–"} <span className="text-sm text-muted">{p.unit}</span>
+        {p.latest ? (p.kind === "air_quality" ? r1(p.latest.value) : p.latest.value) : "–"} <span className="text-sm text-muted">{p.unit}</span>
         <span className="ml-3 text-[11px] text-muted">{p.latest ? ageLabel(p.latest.t, now) : "no reading"}</span>
       </p>
       <div className="mt-2">{series ? <Sparkline points={series.points} unit={p.unit} color={STATUS_COLOR[st]} label={p.name} /> : <p className="h-20 text-xs text-muted">Loading chart&hellip;</p>}</div>
