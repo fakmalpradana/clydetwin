@@ -1,0 +1,35 @@
+[project]
+name = "clydetwin"
+version = "0.0.0"
+description = "Open-data 3D digital twin of Glasgow: pipelines"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Fairuz Akmal Pradana" }]
+dependencies = [
+    "boto3>=1.43.106",
+    "exactextract>=0.3.0",
+    "geopandas>=1.2.0",
+    "numpy>=2.5.3",
+    "pyogrio>=0.13.0",
+    "pyproj>=3.8.0",
+    "pyyaml>=6.0.3",
+    "rasterio>=1.5.2",
+    "requests>=2.34.2",
+    "shapely>=2.1.2",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # line length is owned by ruff format
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

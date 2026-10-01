@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use ClydeTwin, please cite it as below."
+title: "ClydeTwin: an open-data 3D digital twin of Glasgow"
+type: software
+authors:
+  - family-names: Pradana
+    given-names: Fairuz Akmal
+license: AGPL-3.0-or-later
+url: "https://clydetwin.vercel.app"
+repository-code: "https://github.com/fakmalpradana/clydetwin"
+version: 0.0.0
+date-released: "2026-10-01"

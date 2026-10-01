@@ -1,0 +1,24 @@
+name: Archive environmental data
+# Saves SEPA KiWIS (river level, rainfall) and Open-Meteo UKMO to R2 every 15 minutes.
+# Secrets (set by the repository owner): R2_ACCOUNT_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+concurrency:
+  group: archive
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --no-dev
+      - run: uv run python -m collectors.archive
+        env:
+          R2_ACCOUNT_ENDPOINT: ${{ secrets.R2_ACCOUNT_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}

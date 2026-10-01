@@ -1,0 +1,29 @@
+# ClydeTwin pipeline configuration. All paths are relative to the repo root.
+crs: 27700                      # analysis CRS (OSGB36 / British National Grid)
+
+aoi:
+  # ponytail: single council area. Airport corridor (Phase 3) = add a second entry here, no code change.
+  authority: "Glasgow City"     # Boundary-Line AdministrativeUnit "text" value
+  buffer_m: 500
+  path: data/aoi.gpkg
+
+sample:
+  # One 1 km tile around George Square / Merchant City (EPSG:27700: minx, miny, maxx, maxy)
+  bbox: [259000, 665000, 260000, 666000]
+
+lidar:
+  # Phase 5 (Fugro for SPEN, flown 2020-05-28 .. 2021-04-12) covers 100% of the AOI; see docs/data-verification.md
+  catalogue_api: https://api.remotesensing.data.gov.scot
+  collection_dsm: scotland-gov/lidar/phase-5/dsm
+  collection_dtm: scotland-gov/lidar/phase-5/dtm
+  year: 2020                    # lidar_year attribute: first year of the acquisition window (conservative)
+  raw_dir: data/raw/lidar
+
+os:
+  downloads_api: https://api.os.uk/downloads/v1/products
+  raw_dir: data/raw/os
+  grid_square: NS
+
+heights:
+  default_height_m: 6.0         # used when a footprint has no valid LiDAR pixels or nDSM height < min_height_m
+  min_height_m: 2.0
