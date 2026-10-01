@@ -1,0 +1,181 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.1209,
+     55.8286
+    ]
+   },
+   "properties": {
+    "id": "sepa:fx-clyde-daldowie",
+    "source": "sepa",
+    "kind": "river_level",
+    "name": "River Clyde at Daldowie",
+    "unit": "m",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 1.18
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2399,
+     55.8509
+    ]
+   },
+   "properties": {
+    "id": "sepa:fx-clyde-weir",
+    "source": "sepa",
+    "kind": "river_level",
+    "name": "River Clyde at Glasgow Weir",
+    "unit": "m",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 2.39
+    },
+    "status": "high"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2991,
+     55.9007
+    ]
+   },
+   "properties": {
+    "id": "sepa:fx-kelvin-killermont",
+    "source": "sepa",
+    "kind": "river_level",
+    "name": "River Kelvin at Killermont",
+    "unit": "m",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 0.69
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2574,
+     55.8153
+    ]
+   },
+   "properties": {
+    "id": "sepa:fx-whitecart-cathcart",
+    "source": "sepa",
+    "kind": "river_level",
+    "name": "White Cart Water at Cathcart",
+    "unit": "m",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 0.56
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2518,
+     55.8642
+    ]
+   },
+   "properties": {
+    "id": "sepa:fx-rain-glasgow",
+    "source": "sepa",
+    "kind": "rainfall",
+    "name": "Rain gauge, Glasgow (15 min total)",
+    "unit": "mm",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 0.2
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.25,
+     55.86
+    ]
+   },
+   "properties": {
+    "id": "meteo:fx-g11",
+    "source": "meteo",
+    "kind": "weather",
+    "name": "Glasgow centre (Open-Meteo grid)",
+    "unit": "°C",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 11.68
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2459,
+     55.8621
+    ]
+   },
+   "properties": {
+    "id": "aq:fx-glasgow-kerbside",
+    "source": "saqd",
+    "kind": "air_quality",
+    "name": "Glasgow Kerbside (PM2.5)",
+    "unit": "µg/m³",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 9.51
+    },
+    "status": "normal"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.2373,
+     55.8643
+    ]
+   },
+   "properties": {
+    "id": "aq:fx-glasgow-townhead",
+    "source": "saqd",
+    "kind": "air_quality",
+    "name": "Glasgow Townhead (PM2.5)",
+    "unit": "µg/m³",
+    "latest": {
+     "t": "2026-01-01T12:00:00Z",
+     "value": 6.58
+    },
+    "status": "normal"
+   }
+  }
+ ]
+}
