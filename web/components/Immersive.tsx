@@ -22,7 +22,7 @@ export default function Immersive() {
       // Weak GPUs and phones get the lighter Explore map (with a way back in).
       if (q.get("force") !== "1") {
         const { getGPUTier } = await import("detect-gpu");
-        const tier = await getGPUTier().catch(() => ({ tier: 0, isMobile: true }));
+        const tier = await getGPUTier({ benchmarksURL: "/gpu-benchmarks" }).catch(() => ({ tier: 0, isMobile: true }));
         if (cancelled) return;
         if (tier.tier < 2 || tier.isMobile) {
           router.replace(`/explore?${cameraQuery(initial)}&gpu=low`);
@@ -49,7 +49,10 @@ export default function Immersive() {
           CLYDETWIN
         </Link>
         <button
-          onClick={() => router.push(`/explore${latest.current ? `?${cameraQuery(latest.current)}` : ""}`)}
+          onClick={() => {
+            const t = new URLSearchParams(window.location.search).get("t");
+            router.push(`/explore${latest.current ? `?${cameraQuery(latest.current)}${t ? `&t=${encodeURIComponent(t)}` : ""}` : ""}`);
+          }}
           className="pointer-events-auto rounded-md bg-panel/85 px-3 py-2 text-sm backdrop-blur hover:text-accent"
         >
           &larr; Map view

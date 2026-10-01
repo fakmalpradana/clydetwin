@@ -9,8 +9,8 @@ import type * as CesiumNS from "cesium";
 
 type CesiumLib = typeof import("@/lib/cesium");
 
-const glasgowTime = () =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }).format(new Date());
+const glasgowTime = (d: Date) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }).format(d);
 
 const fmt = (v: unknown, unit?: string) => {
   if (typeof v === "number") return `${Number.isInteger(v) ? v : v.toFixed(2)}${unit ? " " + unit : ""}`;
@@ -52,6 +52,8 @@ export default function Explore() {
         setError(`Could not load the building tileset: ${(e as Error).message}`);
         return;
       }
+      // ponytail: debug hook for terrain/alignment checks in dev only
+      if (process.env.NODE_ENV !== "production") (window as unknown as { __cesium: unknown }).__cesium = { viewer, tileset, C };
       api.current = { lib, viewer, tileset, ionTerrain: terrainIsIon ? viewer.terrainProvider : undefined };
       lib.setCamera(viewer, paramsToCamera(q));
       const sync = () => {
@@ -96,7 +98,8 @@ export default function Explore() {
     a.viewer.terrainProvider = terrain && a.ionTerrain ? a.ionTerrain : a.lib.flatTerrain();
   }, [terrain, ready]);
 
-  const immersive = `/immersive${cam ? `?${cameraQuery(cam)}` : ""}`;
+  const t = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("t");
+  const immersive = `/immersive${cam ? `?${cameraQuery(cam)}${t ? `&t=${encodeURIComponent(t)}` : ""}` : ""}`;
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
@@ -127,7 +130,7 @@ export default function Explore() {
         <p className="mt-2 flex items-center gap-2 text-[11px] text-muted">
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: DEFAULT_HEIGHT_COLOR }} /> No LiDAR height (6 m default)
         </p>
-        <p className="mt-2 text-[10px] text-muted">Sun: Glasgow, {glasgowTime()}</p>
+        <p className="mt-2 text-[10px] text-muted">Sun: Glasgow, {glasgowTime(sceneDate(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)))}</p>
       </aside>
 
       {selected && (
@@ -153,7 +156,7 @@ export default function Explore() {
       {lowGpu && (
         <div className="absolute left-4 right-4 top-16 z-20 rounded-md border border-line bg-panel/95 p-3 text-sm sm:left-auto sm:w-80">
           Your device looks too light for the Immersive view, so you are on the lighter map.{" "}
-          <Link href={`/immersive?${cam ? cameraQuery(cam) + "&" : ""}force=1`} className="text-accent underline">
+          <Link href={`/immersive?${cam ? cameraQuery(cam) + "&" : ""}force=1${t ? `&t=${encodeURIComponent(t)}` : ""}`} className="text-accent underline">
             Try Immersive anyway
           </Link>
         </div>
