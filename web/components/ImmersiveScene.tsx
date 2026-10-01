@@ -5,14 +5,14 @@ import { EffectComposer, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { AerialPerspective, Atmosphere, Sky, SkyLight, SunLight } from "@takram/three-atmosphere/r3f";
 import { GlobeControls, TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
-import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
+import { WGS84_ELLIPSOID, type TilesRenderer as TilesRendererImpl } from "3d-tiles-renderer/three";
 import { CesiumIonAuthPlugin, QuantizedMeshPlugin } from "3d-tiles-renderer/plugins";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
-import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TILESET_URL } from "@/lib/tileset";
+import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
   apiToken: ION_TOKEN,
@@ -21,6 +21,14 @@ const ionArgs = {
   assetTypeHandler: (type: string, tiles: { registerPlugin: (p: unknown) => void }) => {
     if (type === "TERRAIN") tiles.registerPlugin(new QuantizedMeshPlugin({ useRecommendedSettings: true }));
   },
+};
+
+// Registered from the ref (synchronously, once per renderer): with <TilesPlugin> the plugin registered after the
+// root layer.json load had started, so it never saw the layer and tiles never refined past level 0.
+const registerOwnTerrain = (t: TilesRendererImpl | null) => {
+  if (!t) return;
+  if (!t.getPluginByName("QUANTIZED_MESH_PLUGIN")) t.registerPlugin(new QuantizedMeshPlugin({ useRecommendedSettings: true }));
+  if (process.env.NEXT_PUBLIC_DEBUG_HOOKS === "1") (window as unknown as { __terrainTiles: unknown }).__terrainTiles = t;
 };
 
 const material = new MeshStandardMaterial({ color: "#b9bec7", roughness: 0.9, metalness: 0, flatShading: true });
@@ -41,9 +49,9 @@ const onTerrain = neutralize(terrainMaterial);
 function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: MutableRefObject<CameraState> }) {
   const camera = useThree((s) => s.camera);
   const get = useThree((s) => s.get);
-  // ponytail: dev-only debug hook for terrain/alignment checks
+  // ponytail: debug hook (NEXT_PUBLIC_DEBUG_HOOKS=1) for terrain/alignment checks
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") (window as unknown as { __three: unknown }).__three = get();
+    if (process.env.NEXT_PUBLIC_DEBUG_HOOKS === "1") (window as unknown as { __three: unknown }).__three = get();
   }, [get]);
   const aspect = useThree((s) => s.size.width / s.size.height);
   useEffect(() => stateToCamera(initial, camera), [camera, initial]);
@@ -150,7 +158,10 @@ export default function ImmersiveScene({
             <TilesPlugin plugin={ImplicitTilingPlugin} />
             {world && <GlobeControls scene={world} enableDamping />}
           </TilesRenderer>
-          {hasIon ? (
+          {TERRAIN_URL ? (
+            // Our own quantized-mesh terrain (no ion auth). Outside its extent there is simply no ground.
+            <TilesRenderer ref={registerOwnTerrain} key="own-terrain" url={TERRAIN_URL} onLoadModel={onTerrain} />
+          ) : hasIon ? (
             // Cesium World Terrain (ion asset 1); the ion plugin registers the quantized-mesh plugin once it sees TERRAIN.
             <TilesRenderer key="terrain" onLoadModel={onTerrain}>
               <TilesPlugin plugin={CesiumIonAuthPlugin} args={[ionArgs]} />

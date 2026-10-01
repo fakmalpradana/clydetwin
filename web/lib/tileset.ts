@@ -4,6 +4,11 @@
 export const TILESET_URL =
   process.env.NEXT_PUBLIC_TILESET_URL ?? "http://localhost:8081/lod1/tileset.json";
 
+/** Our own quantized-mesh terrain (base URL or .../layer.json). Preferred over ion World Terrain when set. */
+export const TERRAIN_URL = process.env.NEXT_PUBLIC_TERRAIN_URL
+  ? process.env.NEXT_PUBLIC_TERRAIN_URL.replace(/layer\.json$/, "").replace(/\/?$/, "/")
+  : "";
+
 export const ION_TOKEN = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN ?? "";
 
 /** Per-building metadata (glTF EXT_structural_metadata property table). */
@@ -11,6 +16,7 @@ export interface BuildingProps {
   building_id: string; // OpenMap Local UUID
   height: number; // m, = h_p70
   h_max: number; // m
+  h_p90?: number; // m; not in the current tiles (pipeline writes h_max only), shown when present
   ground_z_odn: number; // m above Ordnance Datum Newlyn
   ground_z_ellip: number; // m above the ETRS89/WGS84 ellipsoid
   area_m2: number; // m2
@@ -21,6 +27,7 @@ export interface BuildingProps {
 export const BUILDING_FIELDS: { key: keyof BuildingProps; label: string; unit?: string }[] = [
   { key: "building_id", label: "Building ID" },
   { key: "height", label: "Height (p70)", unit: "m" },
+  { key: "h_p90", label: "Height (p90)", unit: "m" },
   { key: "h_max", label: "Max height", unit: "m" },
   { key: "ground_z_odn", label: "Ground (ODN)", unit: "m" },
   { key: "ground_z_ellip", label: "Ground (ellipsoidal)", unit: "m" },

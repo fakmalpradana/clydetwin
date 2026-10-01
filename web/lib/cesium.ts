@@ -8,6 +8,7 @@ import {
   FLAT_GROUND_M,
   HEIGHT_RAMP,
   ION_TOKEN,
+  TERRAIN_URL,
   TILESET_URL,
 } from "./tileset";
 
@@ -69,19 +70,37 @@ export async function createViewer(
     const c = scene.screenSpaceCameraController;
     c.enableInputs = false;
   }
-  let terrainIsIon = false;
-  if (hasIon) {
+  // Terrain priority: our own quantized-mesh (NEXT_PUBLIC_TERRAIN_URL) > ion World Terrain > flat ground.
+  let terrain: "own" | "ion" | "flat" = "flat";
+  let realTerrain: Cesium.TerrainProvider | undefined;
+  if (TERRAIN_URL) {
     try {
-      viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
-      terrainIsIon = true;
-      // With a token, ion imagery replaces the Carto fallback basemap.
+      realTerrain = await Cesium.CesiumTerrainProvider.fromUrl(TERRAIN_URL);
+      terrain = "own";
+    } catch (e) {
+      console.warn("Own terrain unavailable", e);
+    }
+  }
+  if (hasIon) {
+    // With a token, ion imagery replaces the Carto fallback basemap.
+    try {
       viewer.imageryLayers.removeAll();
       viewer.imageryLayers.addImageryProvider(await Cesium.createWorldImageryAsync());
     } catch (e) {
-      console.warn("Cesium World Terrain unavailable, using flat ground", e);
+      console.warn("ion imagery unavailable", e);
+      viewer.imageryLayers.add(darkBasemap());
+    }
+    if (!realTerrain) {
+      try {
+        realTerrain = await Cesium.createWorldTerrainAsync();
+        terrain = "ion";
+      } catch (e) {
+        console.warn("Cesium World Terrain unavailable, using flat ground", e);
+      }
     }
   }
-  return { viewer, terrainIsIon };
+  if (realTerrain) viewer.terrainProvider = realTerrain;
+  return { viewer, terrain, realTerrain };
 }
 
 /** Viridis-by-height style; height_source=default buildings neutral. */
