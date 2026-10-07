@@ -6,6 +6,7 @@ export interface WeatherFx {
   cloud_mid: number;
   cloud_high: number;
   precip_mm: number;
+  wind_ms?: number;
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, Number.isFinite(x) ? x : 0));
@@ -55,3 +56,12 @@ export function parseWxOverride(v: string | null): WeatherFx | null {
   if (n.length !== 4 || n.some((x) => !Number.isFinite(x))) return null;
   return { cloud_low: n[0], cloud_mid: n[1], cloud_high: n[2], precip_mm: n[3] };
 }
+
+/** Rain intensity 0-1 from precipitation in mm/h: nothing below 0.2 (a trace is not rain), saturated at 5 mm/h. */
+export const rainIntensity = (mm: number) => (mm < 0.2 ? 0 : clamp01(mm / 5));
+
+/** Wet-look strength 0-1: follows the rain intensity. */
+export const wetness = rainIntensity;
+
+/** Multipliers for the wet look: surfaces darken up to 30 % and lose roughness (up to 0.45 lower). */
+export const wetLook = (wet: number) => ({ shade: 1 - 0.3 * wet, roughnessDrop: 0.45 * wet });

@@ -10,14 +10,15 @@ import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesO
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { BufferAttribute, type DirectionalLight, Group, Matrix4, Mesh, Quaternion, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { BufferAttribute, type DirectionalLight, Group, Color, Matrix4, Mesh, Quaternion, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
-import { cloudParams, type WeatherFx } from "@/lib/weatherfx";
+import Rain from "./Rain";
+import { cloudParams, rainIntensity, wetLook, type WeatherFx } from "@/lib/weatherfx";
 import { QUALITY, type Quality } from "@/lib/quality";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
@@ -40,6 +41,19 @@ const registerOwnTerrain = (t: TilesRendererImpl | null) => {
 
 const material = new MeshStandardMaterial({ color: "#b9bec7", roughness: 0.9, metalness: 0, flatShading: true });
 
+// Wet look: shade and roughness of every standard material in a tile scene, relative to its dry values (kept in userData).
+let currentWet = 0;
+const applyWet = (root: Object3D, wet: number) => {
+  const { shade, roughnessDrop } = wetLook(wet);
+  root.traverse((o) => {
+    const m = (o as Mesh).isMesh ? ((o as Mesh).material as MeshStandardMaterial) : null;
+    if (!m || !m.isMeshStandardMaterial) return;
+    const dry = (m.userData.dry ??= { color: m.color.clone(), roughness: m.roughness }) as { color: Color; roughness: number };
+    m.color.copy(dry.color).multiplyScalar(shade);
+    m.roughness = Math.max(0.2, dry.roughness - roughnessDrop);
+  });
+};
+
 const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
   e.scene.traverse((o) => {
     const mesh = o as Mesh;
@@ -48,7 +62,10 @@ const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
       mesh.castShadow = mesh.receiveShadow = true;
     }
   });
-const onBuildings = neutralize(material);
+const onBuildings = (e: { scene: Object3D }) => {
+  neutralize(material)(e);
+  applyWet(e.scene, currentWet);
+};
 
 type Metadata = { getPropertyTableData: (table: number, row: number) => { building_id?: string } };
 /** LoD1 handler: grey material, and drop the triangles of buildings that the LoD2 pilot replaces. */
@@ -69,7 +86,7 @@ const onLod1 = (pilot: Set<string>) => (e: { scene: Object3D }) => {
 };
 // Terrain keeps the material the quantized-mesh loader created: ImageOverlayPlugin wraps it to drape the basemap,
 // and swapping in a shared material would drop that.
-const onTerrain = (e: { scene: Object3D }) =>
+const onTerrain = (e: { scene: Object3D }) => {
   e.scene.traverse((o) => {
     const mesh = o as Mesh;
     if (mesh.isMesh) {
@@ -79,6 +96,8 @@ const onTerrain = (e: { scene: Object3D }) =>
       m.metalness = 0;
     }
   });
+  applyWet(e.scene, currentWet);
+};
 
 /** Place the camera from the shared state once, and publish its state (4 Hz) for the Explore switch + URL. */
 function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: MutableRefObject<CameraState> }) {
@@ -391,6 +410,11 @@ export default function ImmersiveScene({
   useEffect(() => {
     loadPilotIds().then(setPilot, (e) => { console.warn("LoD2 pilot unavailable", e); setPilot("failed"); });
   }, []);
+  const rain = rainIntensity(weather?.precip_mm ?? 0);
+  useEffect(() => {
+    currentWet = rain;
+    if (world) applyWet(world, rain);
+  }, [world, rain]);
   const lod1Handler = useMemo(() => (pilot && pilot !== "failed" ? onLod1(pilot) : onBuildings), [pilot]);
   return (
     <Canvas
@@ -441,6 +465,7 @@ export default function ImmersiveScene({
         {TERRAIN_URL && <FarGround anchor={anchor} />}
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
+        <Rain intensity={rain} wind={weather?.wind_ms ?? 0} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />

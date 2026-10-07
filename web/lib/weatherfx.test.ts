@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { cloudParams, parseWxOverride } from "./weatherfx";
+import { cloudParams, parseWxOverride, rainIntensity, wetLook } from "./weatherfx";
 
 describe("cloudParams", () => {
   it("clear sky switches every deck off", () => {
@@ -26,5 +26,24 @@ describe("parseWxOverride", () => {
     expect(parseWxOverride("1,2,3")).toBeNull();
     expect(parseWxOverride("a,b,c,d")).toBeNull();
     expect(parseWxOverride(null)).toBeNull();
+  });
+});
+
+describe("rain", () => {
+  it("no effect without rain", () => {
+    expect(rainIntensity(0)).toBe(0);
+    expect(rainIntensity(0.1)).toBe(0);
+    expect(wetLook(0)).toEqual({ shade: 1, roughnessDrop: 0 });
+  });
+  it("grows with precipitation and saturates", () => {
+    expect(rainIntensity(1)).toBeCloseTo(0.2);
+    expect(rainIntensity(2.5)).toBeGreaterThan(rainIntensity(1));
+    expect(rainIntensity(40)).toBe(1);
+    expect(rainIntensity(NaN)).toBe(0);
+  });
+  it("wet surfaces are darker and glossier", () => {
+    const w = wetLook(1);
+    expect(w.shade).toBeCloseTo(0.7);
+    expect(w.roughnessDrop).toBeCloseTo(0.45);
   });
 });
