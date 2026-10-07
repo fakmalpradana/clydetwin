@@ -27,3 +27,20 @@ roof shape and underestimates podium-and-tower buildings, see `lod1.md`). `store
 a heuristic with a fixed 3.0 m floor-to-floor height (`analytics.storey_height_m`); it overestimates tall-storey
 commercial buildings and underestimates low-ceiling flats. Buildings with `height_source = "default"` (3%) have the 6 m
 default height, so their storeys (2) and volume are placeholders.
+
+## B4. X6 noise exposure
+
+Source: Noise Mapping Scotland Round 4 (2021), consolidated Lden grid (road, rail, Glasgow Airport and industry
+combined by logarithmic summation; 10 m cells, receiver height 4 m, OGL v3). The brief asked for road and rail; the
+consolidated grid is used because it is the only Lden product published as one GeoTIFF for all sources (the per-source
+layers exist only as MapServer services). `pipelines/noise.py` takes the **maximum over each footprint buffered by
+10 m** (`exactextract`, coverage weighted), a proxy for the loudest facade.
+
+| Field | Type | Domain |
+|---|---|---|
+| `noise_lden_db` | float32 | 1 decimal, dB(A) Lden; null where the grid has no value (56 buildings outside the model) |
+| `noise_band` | string | `<50`, `50-54`, `55-59`, `60-64`, `65-69`, `70-74`, `75+`; null with `noise_lden_db` |
+
+Limits: strategic modelling at 10 m is not a property-level assessment (the publisher says so); the 10 m buffer
+picks up the road in front of a building in narrow streets; a building's quiet facade is not represented.
+Result: median 55.9 dB, 75+ dB for 713 buildings, 70+ dB for 3,345.

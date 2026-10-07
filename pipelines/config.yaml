@@ -40,3 +40,4 @@ analytics:
   out_dir: build/analytics
   uprn_match_max_m: 2           # UPRN to footprint: inside, or nearest within this distance
   storey_height_m: 3.0          # X1 storeys = height / this (documented heuristic)
+  noise_buffer_m: 10            # X6: max Lden over the footprint buffered by this (loudest-facade proxy)

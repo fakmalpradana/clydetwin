@@ -82,3 +82,4 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 |---|---|---|
 | B1 | `pipelines/crosswalk.py`: building_id to UPRN (spatial join of OS Open UPRN, inside or nearest within 2 m) to TOID (OS Open Linked Identifiers); 87.5% of 86,286 buildings get a UPRN and a TOID; pytest on the match logic | done |
 | B2 | X1 in `pipelines/attrs.py`: `volume_m3`, `storeys_est` (height / 3.0 m heuristic) and the assembler that left-joins every `part_*.parquet` onto the LoD1 base; pytest | done |
+| B4 | X6 `pipelines/noise.py`: Scottish Noise Mapping Round 4 consolidated Lden, max over a 10 m footprint buffer; `noise_lden_db` and 5 dB `noise_band`; pytest on band edges | done (consolidated grid, not separate road/rail: see `docs/methods/analytics.md`) |
