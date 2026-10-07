@@ -110,22 +110,28 @@ LoD1 heights table so styling is identical) plus `lod = 2`. 696 buildings in 16 
 list of `building_id`s that have LoD2 geometry: the web hides LoD1 features with these ids inside the pilot. LoD1
 stays in place everywhere else (and for the 32 pilot buildings without LoD2).
 
-## Triangulation (v3)
+## Triangulation and QA gate (v3, v4)
 
-**Cause.** Up to `lod2/v2` the faces went to PostGIS as 3D polygons in lon/lat degrees plus ellipsoidal metres.
-pg2b3dm triangulates each polygon after projecting it onto a plane derived from those mixed units, so concave or holed
-wall and roof faces were triangulated across their gaps: spikes, "sails" and roof shards, identical in Cesium and
-three.js. roofer's vertices were fine (LoD2 tops match LiDAR `h_max`; only 3 of 722 exceed it by more than 5 m).
+**Triangulation (robustness fix, v3).** Up to `lod2/v2` faces went to PostGIS as 3D polygons in lon/lat degrees plus
+ellipsoidal metres and pg2b3dm triangulated each after projecting onto a plane from those mixed units, which can
+triangulate across the gaps of concave or holed faces. `pipelines/lod2_tiles.triangulate_face` now triangulates every
+non-ground face in metres (BNG + ODN z, Newell-plane basis, `shapely.constrained_delaunay_triangles`, centroids outside
+the face dropped, triangles under 1e-4 m2 dropped, outward winding) before the datum step, and the tile source is a
+MultiPolygon of triangles. Area check (`tests/test_lod2_tri.py`): synthetic L wall, sloped concave roof and holed face
+within 1e-6 relative; on the 696 pilot buildings (25,847 faces) the triangle 3D area equals the source face area with a
+maximum per-building deviation of 3.8e-5 %. Triangle count is unchanged (79,323). **This did not remove the visible
+spikes and shards**: those were not a triangulation fault.
 
-**Fix.** `pipelines/lod2_tiles.triangulate_face` triangulates every non-ground face in metres before any datum step:
-roofer BNG coordinates with ODN z, an orthonormal 2D basis on the face plane (Newell normal), outer ring plus holes
-projected, `shapely.constrained_delaunay_triangles`, triangles with centroid outside the face dropped, lifted back to
-3D, triangles under 1e-4 m2 dropped, each triangle wound counter-clockwise about the face normal (outward). Only then are
-vertices converted with `odn_to_ellipsoidal`; the tile source is a MultiPolygon of 3-vertex polygons, so pg2b3dm has
-nothing left to triangulate wrongly.
+**Real cause: roofer plane extrapolation.** In some buildings a slanted roof plane is extrapolated into a wedge: one tip
+shoots far above the LiDAR top (the spike) and the low end dives toward the ground (the shards). Example 2729F348: a
+RoofSurface spans 9.1 to 75.8 m ODN while the LiDAR top is about 39.4 m.
 
-**Area check** (`tests/test_lod2_tri.py`): on synthetic L-shaped wall, sloped concave roof and holed face, triangle area
-equals face area to 1e-6 relative with centroids inside and normals preserved. On the 696 pilot buildings (25,847 faces)
-the total triangle 3D area equals the source face area (outer minus holes) with a maximum per-building deviation of
-3.8e-5 % (gate 0.5 %). Triangle count is 79,323 (a per-face ear-clipping estimate for v2 was 79,331); the fix changes
-which triangles exist, not how many. Published to R2 `lod2/v3/` (v2 untouched), 16 tiles, 7.1 MB.
+**QA gate (v4).** `qa_reason` in `pipelines/lod2_tiles.py`, thresholds in `config.yaml` `lod2.qa`: a building's LoD2 is
+rejected if any RoofSurface vertex is above `ground_z_odn + h_max + 3.0 m` (`above_lidar`), or below `ground_z_odn +
+1.0 m` when `h_p70 > 4 m` (`reaches_ground`). Of the 696 buildings with LoD2 geometry, **35 are rejected (19
+`above_lidar`, 16 `reaches_ground`)** and 661 are kept. Rejected ids and reasons go to `build/pilot/lod2_qa_rejects.csv`;
+they are left out of the tiles and of `pilot_ids.json`, so LoD1 shows for them. Published to R2 `lod2/v4/` (16 tiles).
+
+**Quality figures.** The val3dity (699 of 699 solids valid) and roof-RMSE figures above (1.45 m per-building median,
+3.85 m pixel-weighted) are for all roofer buildings, before the gate; they were not recomputed on the 661 kept
+buildings.

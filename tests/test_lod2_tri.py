@@ -79,3 +79,25 @@ def test_pilot_area_preserved_per_building():
             worst = max(worst, abs(tri - src) / src)
     print(f"max per-building area deviation {worst:.3%}")
     assert worst < 0.005
+
+
+def _feat(zs):
+    ring = [[0, 0], [1, 0], [1, 1]]
+    pts = np.array([[x, y, z] for (x, y), z in zip(ring, zs, strict=True)], float)
+    return {
+        "id": "b",
+        "xyz": pts,
+        "CityObjects": {"b": {"geometry": [{"lod": "2.2", "boundaries": [[[[0, 1, 2]]]],
+                                            "semantics": {"surfaces": [{"type": "RoofSurface"}], "values": [[0]]}}]}},
+    }  # fmt: skip
+
+
+def test_qa_gate():
+    from pipelines.lod2_tiles import qa_reason
+
+    qa = {"above_lidar_m": 3.0, "ground_clearance_m": 1.0, "min_h_p70_m": 4.0}
+    assert qa_reason(_feat([10, 11, 12]), 5.0, 8.0, 5.0, qa) is None
+    assert qa_reason(_feat([10, 11, 17]), 5.0, 8.0, 5.0, qa) == "above_lidar"
+    assert qa_reason(_feat([5.5, 11, 12]), 5.0, 8.0, 5.0, qa) == "reaches_ground"
+    assert qa_reason(_feat([5.5, 11, 12]), 5.0, 8.0, 3.0, qa) is None  # low building: allowed
+    assert qa_reason(_feat([5.5, 11, 12]), 5.0, float("nan"), float("nan"), qa) is None
