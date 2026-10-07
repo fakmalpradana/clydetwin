@@ -135,3 +135,36 @@ Result (86,286 buildings): `flood_max` none 68,551, low 5,316, medium 8,572, hig
 flags a building); the maps show present-day, undefended-by-design extents and not climate scenarios; depth is not
 included (the depth layers are tens of GB). SEPA states that the maps are strategic and not for individual property
 assessment.
+
+## B8. Output contract
+
+`make analytics` writes `build/analytics/buildings_attrs.parquet` (one row per `building_id`, 86,286 rows, the
+LoD1 universe) and `build/analytics/data_zones.geojson`. Parquet uses real nulls; `building_id` joins to the LoD1 tiles.
+`crosswalk.parquet` holds UPRNs and is internal, never published. Public columns are checked by
+`attrs.check_public_columns` (no address, postcode, UPRN, OS NGD or Digimap BHA names).
+
+| Column | Type | Domain |
+|---|---|---|
+| `building_id` | string | OpenMap Local id, parts of multipolygons suffixed `-n` |
+| `area_m2`, `height` | float | LoD1 footprint area and height (m) |
+| `height_source` | string | `lidar`, `default` |
+| `volume_m3` | float | area x height |
+| `storeys_est` | int16 | >= 1 |
+| `n_units`, `n_toid` | int32 | UPRNs matched / distinct TOIDs, 0 when none |
+| `toid` | string | most common TOID, null when none |
+| `epc_count` | int32 | 0 when none |
+| `epc_sap_median` | float | 1-100, null when none |
+| `epc_rating` | string | A-G, null when none |
+| `epc_latest_year` | float | null when none |
+| `flood_river`, `flood_coastal`, `flood_surface`, `flood_max` | string | none, low, medium, high |
+| `noise_lden_db` | float32 | dB, null when outside the model |
+| `noise_band` | string | `<50`, `50-54`, `55-59`, `60-64`, `65-69`, `70-74`, `75+`, null |
+| `lb_category` | string | A, B, C, none |
+| `listed`, `conservation_area` | bool | |
+| `data_zone` | string | DZ2022 code, joins to `data_zones.geojson` `dz22` |
+
+**LoD1 tiles v3** (`make tiles-attrs`, `lod1/v3/`, new version, v1 and v2 untouched). Metadata is the v2 set plus
+`volume_m3`, `storeys_est`, `flood_river`, `flood_coastal`, `flood_surface`, `flood_max`, `noise_lden_db`, `noise_band`,
+`epc_count`, `epc_sap_median`, `epc_rating`, `lb_category`, `conservation_area` (int 0/1) and `data_zone`. Tile properties
+have no nulls: text without a value is `"none"`, numbers without a value are `-1` (`noise_lden_db`, `epc_sap_median`),
+`epc_count` is 0. UPRN, TOID, addresses and every NGD or BHA field are not in the tiles.

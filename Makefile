@@ -4,7 +4,7 @@ MODE ?= sample
 PORT ?= 8081
 # Published tiles live under lod1/$(TILE_VERSION)/ and terrain/$(TILE_VERSION)/ (immutable caching; bump on rebuild)
 TILE_VERSION ?= v1
-.PHONY: r2-version-copy live-up live-down live-logs soak-report migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
+.PHONY: analytics tiles-attrs r2-version-copy live-up live-down live-logs soak-report migrate backfill help setup lint test db-up db-down lod1 terrain tiles publish-lod1 serve-tiles serve-terrain publish
 help:
 	@echo "targets: setup lint test db-up db-down lod1 terrain serve-tiles serve-terrain publish  (lod1/serve-tiles take MODE=sample|aoi)"
 
@@ -46,6 +46,15 @@ serve-terrain:
 # Rebuild only the 3D Tiles from existing build/$(MODE)/heights.gpkg (PostGIS, pg2b3dm, validator)
 tiles: db-up
 	uv run python -m pipelines.tiles $(MODE)
+
+# Phase 4: per-building analytics (data/raw/analytics cache, ~20 GB; needs `make lod1 MODE=aoi` heights, path in config.yaml
+# or CLYDETWIN_HEIGHTS) -> build/analytics/buildings_attrs.parquet and data_zones.geojson
+analytics:
+	uv run python -m pipelines.analytics
+
+# LoD1 tiles with the analytics attributes -> build/aoi/tiles/lod1_v3 (publish with TILE_VERSION=v3, never over v2)
+tiles-attrs: db-up
+	uv run python -m pipelines.tiles_attrs aoi
 
 # Upload only the LoD1 tiles (to lod1/$(TILE_VERSION)/)
 publish-lod1:
