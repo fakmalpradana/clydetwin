@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterIndex, hideExpression } from "./lod2";
+import { featureIds, filterIndex, hideExpression } from "./lod2";
 
 describe("pilot hiding", () => {
   it("builds a Cesium show expression that is false only for pilot ids", () => {
@@ -22,5 +22,21 @@ describe("pilot hiding", () => {
     expect([...filterIndex(index, fid, new Set([1]))]).toEqual([0, 1, 2]);
     expect([...filterIndex(index, fid, new Set())]).toEqual(index);
     expect(filterIndex(index, fid, new Set([0, 1])).length).toBe(0);
+  });
+});
+
+describe("interleaved feature ids", () => {
+  // vertex = [x, y, z, nx, ny, nz, id] in one buffer (stride 7), as in the LoD1 v4 tiles
+  const buf = new Float32Array([175.8, 3139.9, 133.2, -0.16, -0.98, 0.06, 0, 174.2, 3140.1, 133.2, 0.1, 0.1, 0.9, 0, 10, 20, 30, 0, 0, 1, 1, 11, 21, 31, 0, 0, 1, 1]);
+  const attr = { count: 4, getX: (i: number) => buf[i * 7 + 6] };
+  it("reads one id per vertex, not the raw buffer", () => {
+    expect([...featureIds(attr)]).toEqual([0, 0, 1, 1]);
+  });
+  it("hides only the triangles of the hidden building (the buggy raw-buffer read hid unrelated ones)", () => {
+    const ids = featureIds(attr);
+    const index = [0, 1, 1, 2, 3, 3]; // tri A (building 0) and tri B (building 1)
+    expect([...filterIndex(index, ids, new Set([0]))]).toEqual([2, 3, 3]);
+    expect([...filterIndex(index, ids, new Set([1]))]).toEqual([0, 1, 1]);
+    expect([...filterIndex(index, ids, new Set())]).toEqual(index);
   });
 });

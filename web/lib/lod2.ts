@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // LoD2 pilot (George Square / Merchant City). Where it is shown, the LoD1 features with the same building_id are hidden.
+/** Per-vertex feature ids. glTF attributes can be interleaved (position, normal, id in one buffer), so read through getX, never `.array`. */
+export function featureIds(attr: { count: number; getX: (i: number) => number }): Uint32Array {
+  const out = new Uint32Array(attr.count);
+  for (let i = 0; i < out.length; i++) out[i] = attr.getX(i);
+  return out;
+}
+
 const R2 = "https://pub-7ceb47f944ac4ddb9bac87b602eb42af.r2.dev";
-export const LOD2_URL = process.env.NEXT_PUBLIC_LOD2_URL ?? `${R2}/lod2/v2/tileset.json`;
-export const LOD2_IDS_URL = process.env.NEXT_PUBLIC_LOD2_IDS_URL ?? `${R2}/lod2/v2/pilot_ids.json`;
+export const LOD2_URL = process.env.NEXT_PUBLIC_LOD2_URL ?? `${R2}/lod2/v4/tileset.json`;
+export const LOD2_IDS_URL = process.env.NEXT_PUBLIC_LOD2_IDS_URL ?? `${R2}/lod2/v4/pilot_ids.json`;
 
 export async function loadPilotIds(url = LOD2_IDS_URL): Promise<Set<string>> {
   const r = await fetch(url);
