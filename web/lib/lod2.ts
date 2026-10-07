@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // LoD2 pilot (George Square / Merchant City). Where it is shown, the LoD1 features with the same building_id are hidden.
 const R2 = "https://pub-7ceb47f944ac4ddb9bac87b602eb42af.r2.dev";
-export const LOD2_URL = process.env.NEXT_PUBLIC_LOD2_URL ?? `${R2}/lod2/v3/tileset.json`;
-export const LOD2_IDS_URL = process.env.NEXT_PUBLIC_LOD2_IDS_URL ?? `${R2}/lod2/v3/pilot_ids.json`;
+export const LOD2_URL = process.env.NEXT_PUBLIC_LOD2_URL ?? `${R2}/lod2/v4/tileset.json`;
+export const LOD2_IDS_URL = process.env.NEXT_PUBLIC_LOD2_IDS_URL ?? `${R2}/lod2/v4/pilot_ids.json`;
 
 export async function loadPilotIds(url = LOD2_IDS_URL): Promise<Set<string>> {
   const r = await fetch(url);
