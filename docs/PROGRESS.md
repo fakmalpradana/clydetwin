@@ -75,3 +75,9 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B4 | `/about/data`: adsb.lol and OSM (ODbL), NaPTAN (OGL), SPT headway, SAMPLE DATA note, mode badge explainer; bus, rail, traffic and car parks marked coming soon | done |
 | B5 | vitest `lib/vehicles.test.ts` (13 tests): dead reckoning, track interpolation, timestamp units, parsing, fixture determinism, glide-slope heights, contract shape; web total 37 | done |
 | B8 | Gate fix vs the real API: heading and speed are nullable (taxiing aircraft crashed Cesium with "degrees is required"): no rotation when heading is null, no dead reckoning without both; vitest added. Replay takes Subway from `/tracks?kind=subway`; the client sim is fixture-only. Verified on localhost:3000 against the live stack, 0 console errors | done |
+
+## Phase 4: Analytical Twin (LoD2 workstream, branch `p4/lod2`)
+
+| Task | Description | Status |
+|---|---|---|
+| A1 | Pilot AOI `pilot.bbox` (2 x 2 km, E258500-260500, N664500-666500) in `pipelines/config.yaml`; `python -m pipelines.lidar laz` fetches the 9 Phase 5 LAZ tiles (collection `scotland-gov/lidar/phase-5/laz`, 1 km, 4 pts/m2, same flight as the DSM/DTM, OGL v3): 361 MB, resumable, size-checked, sha256 in `data/raw/lidar/laz/SHA256SUMS` | done |
