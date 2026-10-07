@@ -81,3 +81,4 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | Task | Description | Status |
 |---|---|---|
 | A1 | Pilot AOI `pilot.bbox` (2 x 2 km, E258500-260500, N664500-666500) in `pipelines/config.yaml`; `python -m pipelines.lidar laz` fetches the 9 Phase 5 LAZ tiles (collection `scotland-gov/lidar/phase-5/laz`, 1 km, 4 pts/m2, same flight as the DSM/DTM, OGL v3): 361 MB, resumable, size-checked, sha256 in `data/raw/lidar/laz/SHA256SUMS` | done |
+| A2 | PDAL preprocessing (`python -m pipelines.lod2 prep`, pdal 2.10.2 image pinned by digest): the Phase 5 LAZ has only classes 1 (unclassified) and 2 (ground), no roof class, so points are cropped to the footprints + 10 m, height above ground computed (`filters.hag_nn`), and unclassified points inside a footprint and >= 1.5 m above ground are set to class 6 for roofer. 722 pilot footprints (centroid in the box, within box + 25 m); 9.67 M points, 81 MB LAZ | done |
