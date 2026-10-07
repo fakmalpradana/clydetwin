@@ -3,23 +3,26 @@
 
 Heights use the same OSTN15 + OSGM15 code as LoD1 (`datum.odn_to_ellipsoidal`), so a LoD2 roof sits where the LoD1
 extrusion of the same footprint did. Metadata fields are LoD1's (from build/aoi/heights.gpkg) plus `lod = 2`.
-The tile database must not be the live stack: set COMPOSE_PROJECT_NAME=ctwin-tiles and POSTGRES_PORT=<free port>.
-Output: build/pilot/tiles/lod2/ (tileset.json, subtrees, glb) and pilot_ids.json (building_ids that have LoD2).
+Inputs are read from $CLYDETWIN_PILOT (default build/pilot). The tile database must not be the live stack: set COMPOSE_PROJECT_NAME=ctwin-tiles and POSTGRES_PORT=<free port>.
+Output: build/pilot/tiles/lod2_v2/ (tileset.json, subtrees, glb) and pilot_ids.json (building_ids that have LoD2).
 """
 
 import json
+import os
 import shutil
 import sys
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
-from . import config, lod2_qa, tiles
+from . import config, lod2_qa, tiles, tiles_attrs
 from .datum import odn_to_ellipsoidal
 
 PG2B3DM = "geodan/pg2b3dm@sha256:318d19d0612603d272eb9b719c747aa6786e02b1a400190aa12715f0486a559f"  # 2.27.0, as LoD1
-ATTRS = tiles.ATTRS + ",lod"
+ATTRS = tiles_attrs.ATTRS + ",lod"
+NAME = "lod2_v2"  # build/pilot/tiles/lod2_v2, published to R2 lod2/v2/ (analytics attributes, same fields as lod1/v4)
 # LoD2 tiles carry ~50x the triangles per building of LoD1: far fewer features per tile
 TUNING = ["--max_features_per_tile", "100", "-g", "1500"]
 
@@ -45,7 +48,13 @@ def building_geometry(feat: dict) -> MultiPolygon | None:
 
 
 def build_rows(run: str) -> gpd.GeoDataFrame:
-    feats = lod2_qa.read_cjseq(next((config.ROOT / "build" / "pilot" / run).glob("*.city.jsonl")))
+    feats = lod2_qa.read_cjseq(
+        next(
+            (Path(os.environ.get("CLYDETWIN_PILOT", config.ROOT / "build" / "pilot")) / run).glob(
+                "*.city.jsonl"
+            )
+        )
+    )
     rows = [(f["id"], building_geometry(f)) for f in feats]
     g = gpd.GeoDataFrame(
         [{"building_id": i, "geometry": m} for i, m in rows if m is not None], crs=4326
@@ -72,12 +81,13 @@ def run(run_name: str) -> int:
         " ground_z_ellip::real, area_m2::real, height_source, lidar_year::int, lod::int, geom FROM lod2_src;"
         " CREATE INDEX ON lod2 USING gist (geom)"
     )
-    n = int(tiles._psql("SELECT count(*) FROM lod2"))
-    shutil.rmtree(out / "tiles" / "lod2", ignore_errors=True)
-    tiles.pg2b3dm("pilot", "lod2", ATTRS, TUNING, PG2B3DM)
-    tiles.validate("pilot", "lod2")
+    tiles_attrs.load_attrs_src(config.load())
+    n = tiles_attrs.join_attrs("lod2", "lod2_attrs")
+    shutil.rmtree(out / "tiles" / NAME, ignore_errors=True)
+    tiles.pg2b3dm("pilot", "lod2_attrs", ATTRS, TUNING, PG2B3DM, name=NAME)
+    tiles.validate("pilot", NAME)
     # contract for the web: LoD1 buildings with these ids are hidden inside the pilot (published beside tileset.json)
-    (out / "tiles" / "lod2" / "pilot_ids.json").write_text(json.dumps(sorted(g.building_id)))
+    (out / "tiles" / NAME / "pilot_ids.json").write_text(json.dumps(sorted(g.building_id)))
     return n
 
 
