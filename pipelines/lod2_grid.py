@@ -33,10 +33,13 @@ def score(name: str) -> dict:
     return {"reconstructed": n_ok, "total": len(feats), **lod2_qa.val3dity_summary(rep), **s}
 
 
-def run(name: str, jobs: int = 4, **params) -> dict:
+def run(name: str, jobs: int = 4, beta: bool = False, **params) -> dict:
     grid = lod2.pdir() / "grid.json"
-    lod2.roofer(config.load(), name, jobs=jobs, cj_scale=SCALE, **params)
-    res = score(name) | {"params": {k: str(v) for k, v in params.items()}}
+    lod2.roofer(config.load(), name, jobs=jobs, beta=beta, cj_scale=SCALE, **params)
+    res = score(name) | {
+        "params": {k: str(v) for k, v in params.items()}
+        | ({"roofer": "v1.1.0-beta.1"} if beta else {})
+    }
     table = json.loads(grid.read_text()) if grid.exists() else {}
     table[name] = res  # last writer wins; runs are minutes apart, so no lock
     grid.write_text(json.dumps(table, indent=1))
@@ -46,4 +49,5 @@ def run(name: str, jobs: int = 4, **params) -> dict:
 
 if __name__ == "__main__":
     name, *kv = sys.argv[1:]
-    run(name, **{k: v for k, v in (a.split("=") for a in kv)})
+    kw = dict(a.split("=") for a in kv)
+    run(name, beta=kw.pop("beta", "") == "1", **kw)

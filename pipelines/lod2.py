@@ -19,6 +19,7 @@ from . import config
 
 # Pinned tool images (digests recorded in docs/methods/lod2.md). roofer v1.0.0 is amd64-only: runs under emulation.
 PDAL = "pdal/pdal@sha256:23fab8b5e89367230fae92906983355581c5dc9ec576809c098cdc50539e40d1"
+ROOFER_BETA = "3dgi/roofer@sha256:476b5f4bbaf4109c52fe7fba1e81a9ece0ef4ade557dbdadb79b318444689e99"  # v1.1.0-beta.1 index, native arm64
 ROOFER = "3dgi/roofer@sha256:dd2c415aaee337502bde0dc1426dfa9c9f88e648f9d2f6340110c49932c251d2"
 BUILDING_CLASS = (
     6  # the Phase 5 LAZ only has classes 1 (unclassified) and 2 (ground); roofer wants 6 for roofs
@@ -90,7 +91,7 @@ def prep(cfg: dict) -> None:
     log("pdal: done")
 
 
-def roofer(cfg: dict, out: str = "roofer", jobs: int = 8, **params) -> None:
+def roofer(cfg: dict, out: str = "roofer", jobs: int = 8, beta: bool = False, **params) -> None:
     """Run roofer on the preprocessed cloud; `params` are roofer long options (e.g. complexity_factor=0.7)."""
     d, dst = pdir(), pdir() / out
     pc, fp = d / "pc" / "pilot.laz", d / "footprints.gpkg"
@@ -106,7 +107,7 @@ def roofer(cfg: dict, out: str = "roofer", jobs: int = 8, **params) -> None:
             [] if str(v) == "True" else list(map(str, v if isinstance(v, tuple) else (v,)))
         )
     # roofer v1.0.0 is amd64-only; the entrypoint is the roofer binary
-    subprocess.run(["docker", "run", "--rm", "--platform", "linux/amd64", "-v", f"{d}:/w", ROOFER, "--id-attribute", "building_id", "--srs", "EPSG:27700", "--compute-pc-98p", "-j", str(jobs), *opts, "/w/pc/pilot.laz", "/w/footprints.gpkg", f"/w/{tmp.name}"], check=True)  # fmt: skip
+    subprocess.run(["docker", "run", "--rm", *([] if beta else ["--platform", "linux/amd64"]), "-v", f"{d}:/w", ROOFER_BETA if beta else ROOFER, "--id-attribute", "building_id", "--srs", "EPSG:27700", "--compute-pc-98p", "-j", str(jobs), *opts, "/w/pc/pilot.laz", "/w/footprints.gpkg", f"/w/{tmp.name}"], check=True)  # fmt: skip
     shutil.rmtree(dst, ignore_errors=True)
     tmp.rename(dst)
     done.touch()
