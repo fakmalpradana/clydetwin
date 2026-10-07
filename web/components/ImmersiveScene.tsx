@@ -6,7 +6,7 @@ import { ToneMappingMode } from "postprocessing";
 import { AerialPerspective, Atmosphere, Sky, SkyLight, SunLight } from "@takram/three-atmosphere/r3f";
 import { GlobeControls, TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID, type TilesRenderer as TilesRendererImpl } from "3d-tiles-renderer/three";
-import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
+import { CesiumIonAuthPlugin, GLTFExtensionsPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
@@ -18,6 +18,9 @@ import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
 import Rain from "./Rain";
+import { attachFacade, facadeUniforms, patchFacade } from "./facade";
+import { nightFactor } from "@/lib/facade";
+import { sunElevation } from "@/lib/time";
 import Water from "./Water";
 import { waterLevel } from "@/lib/water";
 import { cloudParams, rainIntensity, wetLook, type WeatherFx } from "@/lib/weatherfx";
@@ -56,6 +59,8 @@ const applyWet = (root: Object3D, wet: number) => {
   });
 };
 
+patchFacade(material);
+
 const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
   e.scene.traverse((o) => {
     const mesh = o as Mesh;
@@ -66,6 +71,7 @@ const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
   });
 const onBuildings = (e: { scene: Object3D }) => {
   neutralize(material)(e);
+  attachFacade(e.scene);
   applyWet(e.scene, currentWet);
 };
 
@@ -81,7 +87,11 @@ const onLod1 = (pilot: Set<string>) => (e: { scene: Object3D }) => {
     if (!g || !fid || !sm || !g.index) return;
     const hidden = new Set<number>();
     for (const id of new Set(Array.from(fid.array as ArrayLike<number>))) {
-      if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
+      try {
+        if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
+      } catch {
+        // feature id outside the property table: keep the triangles
+      }
     }
     if (hidden.size) g.setIndex(new BufferAttribute(filterIndex(g.index.array, fid.array as ArrayLike<number>, hidden), 1));
   });
@@ -413,6 +423,13 @@ export default function ImmersiveScene({
     loadPilotIds().then(setPilot, (e) => { console.warn("LoD2 pilot unavailable", e); setPilot("failed"); });
   }, []);
   const water = useMemo(() => waterLevel(stations), [stations]);
+  useEffect(() => {
+    facadeUniforms.uUp.value.copy(anchor).normalize();
+  }, [anchor]);
+  const night = nightFactor(sunElevation(date));
+  useEffect(() => {
+    facadeUniforms.uNight.value = night;
+  }, [night]);
   const rain = rainIntensity(weather?.precip_mm ?? 0);
   useEffect(() => {
     currentWet = rain;
@@ -445,12 +462,16 @@ export default function ImmersiveScene({
             <TilesRenderer key={pilot === "failed" ? "lod1" : "lod1-hole"} url={TILESET_URL} onLoadModel={lod1Handler}>
               {/* the sample/prod tileset is 3D Tiles 1.1 implicit; the plugin is not on by default */}
               <TilesPlugin plugin={ImplicitTilingPlugin} />
+              {/* decodes EXT_structural_metadata into userData.structuralMetadata (pilot hole, façades) */}
+              <TilesPlugin plugin={GLTFExtensionsPlugin} />
               {world && <GlobeControls scene={world} enableDamping />}
             </TilesRenderer>
           )}
           {pilot && pilot !== "failed" && (
             <TilesRenderer url={LOD2_URL} onLoadModel={onBuildings}>
               <TilesPlugin plugin={ImplicitTilingPlugin} />
+              {/* decodes EXT_structural_metadata into userData.structuralMetadata (pilot hole, façades) */}
+              <TilesPlugin plugin={GLTFExtensionsPlugin} />
             </TilesRenderer>
           )}
           {TERRAIN_URL ? (
@@ -466,6 +487,8 @@ export default function ImmersiveScene({
           )}
         </group>
         {TERRAIN_URL && <FarGround anchor={anchor} />}
+        {/* moonlit fill so the city is not pure black at night */}
+        <ambientLight intensity={night * 0.35} color="#4a5f9a" />
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
         <Water h={water.h} />
