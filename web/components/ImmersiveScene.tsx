@@ -18,6 +18,7 @@ import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
 import Rain from "./Rain";
+import { followPose, tourPose, type CamMode } from "@/lib/camera-modes";
 import { attachFacade, facadeUniforms, patchFacade } from "./facade";
 import { nightFactor } from "@/lib/facade";
 import { sunElevation } from "@/lib/time";
@@ -134,6 +135,20 @@ function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: M
     t.current = 0;
     latestRef.current = cameraToState(camera);
     window.history.replaceState(null, "", withCamera(window.location.search, latestRef.current));
+  });
+  return null;
+}
+
+/** Drives the camera in the tour and follow modes (orbit leaves it to GlobeControls). `speed` scales tour time (demo capture). */
+function CameraRig({ mode, followId, vehicles, speed }: { mode: CamMode; followId: string | null; vehicles: Vehicle[]; speed: number }) {
+  const latest = useRef(vehicles);
+  useEffect(() => { latest.current = vehicles; }, [vehicles]);
+  useFrame(({ camera, clock }) => {
+    if (mode === "tour") stateToCamera(tourPose(clock.elapsedTime * speed), camera);
+    else if (mode === "follow") {
+      const v = latest.current.find((x) => x.id === followId);
+      if (v) stateToCamera(followPose(project(v, Date.now()), v.heading_deg), camera);
+    }
   });
   return null;
 }
@@ -386,7 +401,13 @@ export default function ImmersiveScene({
   quality,
   hud,
   weather,
+  mode,
+  followId,
+  tourSpeed,
 }: {
+  mode: CamMode;
+  followId: string | null;
+  tourSpeed: number;
   weather: WeatherFx | null;
   quality: Quality;
   hud: boolean;
@@ -464,7 +485,7 @@ export default function ImmersiveScene({
               <TilesPlugin plugin={ImplicitTilingPlugin} />
               {/* decodes EXT_structural_metadata into userData.structuralMetadata (pilot hole, façades) */}
               <TilesPlugin plugin={GLTFExtensionsPlugin} />
-              {world && <GlobeControls scene={world} enableDamping />}
+              {world && <GlobeControls scene={world} enableDamping enabled={mode === "orbit"} />}
             </TilesRenderer>
           )}
           {pilot && pilot !== "failed" && (
@@ -494,6 +515,7 @@ export default function ImmersiveScene({
         <Water h={water.h} />
         <Rain intensity={rain} wind={weather?.wind_ms ?? 0} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
+        <CameraRig mode={mode} followId={followId} vehicles={vehicles} speed={tourSpeed} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />
         {hud && <Hud quality={quality} />}
