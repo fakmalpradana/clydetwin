@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 "use client";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
-import { BufferAttribute, BufferGeometry, CanvasTexture, Matrix4, MeshStandardMaterial, RepeatWrapping, Vector3 } from "three";
+import { BufferAttribute, BufferGeometry, CanvasTexture, Matrix4, MeshStandardMaterial, RepeatWrapping, Vector2, Vector3 } from "three";
 import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
 import { buildWater, WATER_URL, type WaterMesh } from "@/lib/water";
 import { GEORGE_SQUARE } from "@/lib/tileset";
+import type { Quality } from "@/lib/quality";
+import { sunElevation } from "@/lib/time";
+import { rippleParams, skyTint, sunGlint } from "@/lib/waterfx";
+import type { WeatherFx } from "@/lib/weatherfx";
+import { makeWater, updateWater } from "./waterMesh";
 
 const RAD = Math.PI / 180;
 
@@ -38,7 +43,7 @@ function rippleNormals(size = 256) {
  * vertices relative to a George Square anchor (float32-safe), a scrolling ripple normal map and low roughness so the
  * sun glints on it. Reflections of the sky are not modelled.
  */
-export default function Water({ h }: { h: number }) {
+export default function Water({ h, quality, weather, date }: { h: number; quality: Quality; weather: WeatherFx | null; date: Date }) {
   const [mesh, setMesh] = useState<WaterMesh | null>(null);
   useEffect(() => {
     let alive = true;
@@ -48,6 +53,31 @@ export default function Water({ h }: { h: number }) {
       .catch((e) => console.warn("water polygons unavailable", e));
     return () => { alive = false; };
   }, []);
+  if (!mesh) return null;
+  return quality === "low" ? <SimpleWater mesh={mesh} h={h} /> : <FlowWater mesh={mesh} h={h} quality={quality} weather={weather} date={date} />;
+}
+
+/** Flow-map water (medium) with a planar reflection (high): see waterMesh.ts. */
+function FlowWater({ mesh, h, quality, weather, date }: { mesh: WaterMesh; h: number; quality: "medium" | "high"; weather: WeatherFx | null; date: Date }) {
+  const size = useThree((s) => s.size);
+  const frame = useMemo(() => WGS84_ELLIPSOID.getEastNorthUpFrame(GEORGE_SQUARE.lat * RAD, GEORGE_SQUARE.lon * RAD, h, new Matrix4()), [h]);
+  const reflW = Math.min(1024, Math.round(size.width / 2));
+  const water = useMemo(
+    () => makeWater(mesh, frame, h, quality, new Vector2(reflW, Math.round((reflW * size.height) / size.width))),
+    [mesh, frame, h, quality, reflW, size.height, size.width],
+  );
+  useEffect(() => () => water.dispose(), [water]);
+  const env = useMemo(() => {
+    const el = sunElevation(date);
+    const cloud = weather ? (weather.cloud_low + weather.cloud_mid + weather.cloud_high) / 3 : 30;
+    return { sky: skyTint(el, cloud), sun: sunGlint(el, cloud) };
+  }, [date, weather]);
+  const look = useMemo(() => rippleParams(weather?.wind_ms ?? 3, weather?.precip_mm ?? 0), [weather]);
+  useFrame(({ clock, scene, camera }) => updateWater(water, { time: clock.elapsedTime, ...look, ...env }, scene, camera));
+  return <primitive object={water.mesh} />;
+}
+
+function SimpleWater({ mesh, h }: { mesh: WaterMesh; h: number }) {
   const anchor = useMemo(() => WGS84_ELLIPSOID.getCartographicToPosition(GEORGE_SQUARE.lat * RAD, GEORGE_SQUARE.lon * RAD, h, new Vector3()), [h]);
   const matrix = useMemo(() => new Matrix4().makeTranslation(anchor), [anchor]);
   const geometry = useMemo(() => {

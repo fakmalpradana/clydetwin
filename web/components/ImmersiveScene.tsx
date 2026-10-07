@@ -517,7 +517,7 @@ export default function ImmersiveScene({
         <ambientLight intensity={night * 0.35} color="#4a5f9a" />
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
-        <Water h={water.h} />
+        <Water h={water.h} quality={quality} weather={weather} date={date} />
         <Rain intensity={rain} wind={weather?.wind_ms ?? 0} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraRig mode={mode} followId={followId} vehicles={vehicles} speed={tourSpeed} />
