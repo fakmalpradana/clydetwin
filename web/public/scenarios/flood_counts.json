@@ -1,0 +1,28 @@
+{
+ "buildings": 86286,
+ "source": "SEPA Flood Maps v3 via analytics B3",
+ "flood_river": {
+  "high": 978,
+  "medium": 1299,
+  "low": 1575,
+  "none": 82434
+ },
+ "flood_coastal": {
+  "high": 178,
+  "medium": 174,
+  "low": 201,
+  "none": 85733
+ },
+ "flood_surface": {
+  "high": 2899,
+  "medium": 7806,
+  "low": 4428,
+  "none": 71153
+ },
+ "flood_max": {
+  "high": 3847,
+  "medium": 8572,
+  "low": 5316,
+  "none": 68551
+ }
+}
