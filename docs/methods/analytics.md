@@ -90,3 +90,29 @@ Result: 1,419 listed buildings (A 258, B 917, C 244) from 5,584 entry points in 
 are not matched; a listing covers a whole building and its curtilage but only the building the point falls on is
 flagged; the conservation area dataset is compiled by HES from local authorities and "may not contain the most recent
 data".
+
+## B7. Data Zones 2022, SIMD, population
+
+Output `build/analytics/data_zones.geojson` (EPSG:4326, 1,003 Data Zones 2022 that hold at least one building,
+2.8 MB) is choropleth-ready; `data_zone` (the `dz22` code) is also a per-building field (100% of buildings keyed by
+their representative point).
+
+| Field | Type | Domain |
+|---|---|---|
+| `dz22` | string | Data Zone 2022 code, `S01...` |
+| `name` | string | zone name |
+| `pop_2024` | int | NRS mid-2024 population, persons (381 to 4,324) |
+| `area_km2` | float | standard (coastline-clipped) area |
+| `pop_density_km2` | int | `pop_2024 / area_km2` (24 to 66,527) |
+| `simd_rank` | int | SIMD 2020v2 overall rank, 1 = most deprived, 6,976 = least (carried over, see below) |
+| `simd_decile` | int | 1 (most deprived 10%) to 10; zone counts 246, 140, 109, 91, 70, 55, 71, 76, 81, 64 |
+| `simd_dominant_share` | float | 0 to 1: share of the zone covered by its largest 2011 zone |
+
+**DZ2011 to DZ2022 lookup and its limits.** SIMD 2020v2 uses the 2011 Data Zones; NRS and the Scottish Government
+state that no official lookup to the 2022 zones exists. We build our own: each 2022 zone takes the area-weighted mean
+SIMD rank of the 2011 zones it overlaps (EPSG:27700 intersection areas, slivers under 1 m2 ignored), and the decile is
+recomputed from that rank. Limits: (1) it is geometric, not population-weighted, so a split zone whose people live
+in one half is misattributed; (2) averaging ranks of very different zones yields a value that no real zone has;
+(3) 130 of the 1,003 zones (13%) have `simd_dominant_share` below 0.8, i.e. they were split or merged by the 2022
+review, so treat their SIMD value as approximate (the web should flag them); (4) the new zones reflect the 2022
+Census while SIMD indicators are 2011-2019 vintage. A SIMD release on the 2022 zones would replace this lookup.
