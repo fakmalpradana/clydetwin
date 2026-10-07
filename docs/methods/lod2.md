@@ -109,3 +109,23 @@ height, pg2b3dm 2.27.0 tiles them (max 100 features per tile, root error 1500). 
 LoD1 heights table so styling is identical) plus `lod = 2`. 696 buildings in 16 tiles (7.0 MB, 0 validator errors). Published to R2 `lod2/v1/`; `lod2/v1/pilot_ids.json` is the
 list of `building_id`s that have LoD2 geometry: the web hides LoD1 features with these ids inside the pilot. LoD1
 stays in place everywhere else (and for the 32 pilot buildings without LoD2).
+
+## Triangulation (v3)
+
+**Cause.** Up to `lod2/v2` the faces went to PostGIS as 3D polygons in lon/lat degrees plus ellipsoidal metres.
+pg2b3dm triangulates each polygon after projecting it onto a plane derived from those mixed units, so concave or holed
+wall and roof faces were triangulated across their gaps: spikes, "sails" and roof shards, identical in Cesium and
+three.js. roofer's vertices were fine (LoD2 tops match LiDAR `h_max`; only 3 of 722 exceed it by more than 5 m).
+
+**Fix.** `pipelines/lod2_tiles.triangulate_face` triangulates every non-ground face in metres before any datum step:
+roofer BNG coordinates with ODN z, an orthonormal 2D basis on the face plane (Newell normal), outer ring plus holes
+projected, `shapely.constrained_delaunay_triangles`, triangles with centroid outside the face dropped, lifted back to
+3D, triangles under 1e-4 m2 dropped, each triangle wound counter-clockwise about the face normal (outward). Only then are
+vertices converted with `odn_to_ellipsoidal`; the tile source is a MultiPolygon of 3-vertex polygons, so pg2b3dm has
+nothing left to triangulate wrongly.
+
+**Area check** (`tests/test_lod2_tri.py`): on synthetic L-shaped wall, sloped concave roof and holed face, triangle area
+equals face area to 1e-6 relative with centroids inside and normals preserved. On the 696 pilot buildings (25,847 faces)
+the total triangle 3D area equals the source face area (outer minus holes) with a maximum per-building deviation of
+3.8e-5 % (gate 0.5 %). Triangle count is 79,323 (a per-face ear-clipping estimate for v2 was 79,331); the fix changes
+which triangles exist, not how many. Published to R2 `lod2/v3/` (v2 untouched), 16 tiles, 7.1 MB.
