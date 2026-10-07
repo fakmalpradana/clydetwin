@@ -89,9 +89,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
 };
 export const THEME_IDS = Object.keys(THEMES) as ThemeId[];
-export const parseTheme = (q: URLSearchParams): ThemeId => {
+export const parseTheme = (q: URLSearchParams, fallback: ThemeId = "height"): ThemeId => {
   const t = q.get("theme");
-  return THEME_IDS.includes(t as ThemeId) ? (t as ThemeId) : "height";
+  return THEME_IDS.includes(t as ThemeId) ? (t as ThemeId) : fallback;
 };
 
 const lit = (v: string | number) => (typeof v === "string" ? `'${v}'` : String(v));

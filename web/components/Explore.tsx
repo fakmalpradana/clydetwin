@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carry, cameraQuery, paramsToCamera, setParam, withCamera, type CameraState } from "@/lib/camera";
+import { FLOOD_CAMERA, carry, cameraQuery, paramsToCamera, setParam, withCamera, type CameraState } from "@/lib/camera";
 import { sceneDate } from "@/lib/time";
 import { FIXTURE, ageLabel, effectiveStatus, getTimeseries, type Timeseries } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
@@ -17,6 +17,7 @@ import BasemapPicker from "./BasemapPicker";
 import { BUILDING_FIELDS, type BuildingProps } from "@/lib/tileset";
 import { analyticsRows, parseTheme, type ThemeId } from "@/lib/themes";
 import { loadPilotIds } from "@/lib/lod2";
+import FloodPanel from "./FloodPanel";
 import ThemeLegend from "./ThemeLegend";
 import { ZoneControls, ZonePanel } from "./ZoneLegend";
 import type { ZoneMode, ZoneProps } from "@/lib/zones";
@@ -32,7 +33,7 @@ const fmt = (v: unknown, unit?: string) => {
   return String(v ?? "-");
 };
 
-export default function Explore() {
+export default function Explore({ scenario }: { scenario?: "flood" }) {
   const container = useRef<HTMLDivElement>(null);
   const api = useRef<{
     lib: CesiumLib;
@@ -44,7 +45,7 @@ export default function Explore() {
     flood?: CesiumNS.ImageryLayer;
   } | null>(null);
   const { stations, now: nowData, tick } = useConditions();
-  const [flood, setFlood] = useState(false);
+  const [flood, setFlood] = useState(!!scenario);
   const [floodErr, setFloodErr] = useState(false);
   const [gaugeId, setGaugeId] = useState<string | null>(null);
   const [gSeries, setGSeries] = useState<{ id: string; ts: Timeseries } | null>(null);
@@ -77,7 +78,7 @@ export default function Explore() {
       if (disposed || !container.current) return;
       setLowGpu(q.get("gpu") === "low");
       setBm(parseBasemap(q));
-      setTheme(parseTheme(q));
+      setTheme(parseTheme(q, scenario ? "flood" : "height"));
       setZonesOn(q.get("zones") === "1");
       setZoneMode(q.get("zm") === "density" ? "density" : "simd");
       setLod2(q.get("lod2") !== "0");
@@ -95,7 +96,7 @@ export default function Explore() {
       // ponytail: debug hook for terrain/alignment checks (NEXT_PUBLIC_DEBUG_HOOKS=1)
       if (process.env.NEXT_PUBLIC_DEBUG_HOOKS === "1") (window as unknown as { __cesium: unknown }).__cesium = { viewer, tileset, C };
       api.current = { lib, viewer, tileset, ionTerrain: realTerrain };
-      lib.setCamera(viewer, paramsToCamera(q));
+      lib.setCamera(viewer, paramsToCamera(q, scenario ? FLOOD_CAMERA : undefined));
       const sync = () => {
         const c = lib.getCamera(viewer);
         setCam(c);
@@ -148,6 +149,7 @@ export default function Explore() {
       api.current?.viewer.destroy();
       api.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- scenario is a fixed prop
   }, []);
 
   useEffect(() => {
@@ -267,10 +269,10 @@ export default function Explore() {
         <label className="flex items-center gap-2 py-1">
           <input type="checkbox" checked={buildings} onChange={(e) => setBuildings(e.target.checked)} /> Buildings (LoD1)
         </label>
-        <label className="flex items-center gap-2 py-1" title="George Square and Merchant City, roofer LoD2.2">
+        {!scenario && <label className="flex items-center gap-2 py-1" title="George Square and Merchant City, roofer LoD2.2">
           <input type="checkbox" checked={lod2} disabled={!pilotIds} onChange={(e) => { setLod2(e.target.checked); window.history.replaceState(null, "", setParam(window.location.search, "lod2", e.target.checked ? "1" : "0")); }} /> LoD2 pilot{lod2Err ? " (unavailable)" : ""}
-        </label>
-        {lod2 && pilotIds && theme !== "height" && <p className="text-[10px] text-muted">LoD2 is shown in the Height theme only; it has no analytics attributes.</p>}
+        </label>}
+        {!scenario && lod2 && pilotIds && theme !== "height" && <p className="text-[10px] text-muted">LoD2 is shown in the Height theme only; it has no analytics attributes.</p>}
         <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs terrain (own or ion); flat ground is used instead"}>
           <input type="checkbox" checked={terrain && ion} disabled={!ion} onChange={(e) => setTerrain(e.target.checked)} /> Terrain{ion ? "" : " (unavailable)"}
         </label>
@@ -354,6 +356,7 @@ export default function Explore() {
         </div>
       )}
 
+      {scenario === "flood" && <FloodPanel />}
       <Ticker now={nowData} tick={tick} />
       <Attribution id={bm} cam={cam} className="absolute bottom-8 right-2 z-10 max-w-[60%]" />
 
