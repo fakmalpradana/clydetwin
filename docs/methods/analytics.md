@@ -68,3 +68,25 @@ Coverage: 44,711 of 86,286 buildings (51.8%) have at least one certificate; rati
 B 3,710, E 2,081, A 476, F 260, G 53. Limits: certificates exist only for dwellings that were sold, let or
 retrofitted since 2016; a building's rating is the median over its certified flats, so it describes the certified
 part. For a building with one certificate, the rating is that dwelling's rating (no address is published).
+
+## B6. HES heritage
+
+Listed Buildings entry points and Conservation Areas polygons from the HES download service (the data.gov.uk
+record shows the licence field as "not set", but the HES portal terms state that spatial downloads are OGL v3; the
+HES attribution wording is in `DATA_LICENSES.md`). `pipelines/heritage.py`:
+
+- `lb_category` / `listed`: the highest category (A > B > C) among entry points inside the footprint or within 5 m of
+  it (HES points are accurate to 1-10 m). Names and addresses of listed buildings are not read.
+- `conservation_area`: the footprint's representative point lies inside a conservation area polygon.
+
+| Field | Type | Domain |
+|---|---|---|
+| `lb_category` | string | `A`, `B`, `C`, `none` |
+| `listed` | bool | `lb_category != "none"` |
+| `conservation_area` | bool | |
+
+Result: 1,419 listed buildings (A 258, B 917, C 244) from 5,584 entry points in the AOI box, and 4,342 buildings in
+52 conservation areas. Limits: many entries are not buildings in OpenMap Local (bridges, walls, monuments) and
+are not matched; a listing covers a whole building and its curtilage but only the building the point falls on is
+flagged; the conservation area dataset is compiled by HES from local authorities and "may not contain the most recent
+data".
