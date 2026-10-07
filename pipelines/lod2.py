@@ -3,11 +3,12 @@
 
 Steps (each skipped when its output is newer than its inputs):
   prep   -> build/pilot/footprints.gpkg, build/pilot/pc/pilot.laz
-  roofer -> build/pilot/roofer/*.city.jsonl
+  roofer -> build/pilot/roofer/*.city.jsonl (CityJSONSeq, LoD2.2, EPSG:27700, ODN heights)
 Usage: python -m pipelines.lod2 prep|roofer
 """
 
 import json
+import shutil
 import subprocess
 import sys
 
@@ -89,5 +90,28 @@ def prep(cfg: dict) -> None:
     log("pdal: done")
 
 
+def roofer(cfg: dict, out: str = "roofer", jobs: int = 8, **params) -> None:
+    """Run roofer on the preprocessed cloud; `params` are roofer long options (e.g. complexity_factor=0.7)."""
+    d, dst = pdir(), pdir() / out
+    pc, fp = d / "pc" / "pilot.laz", d / "footprints.gpkg"
+    done = dst / "DONE"
+    if config.fresh(done, pc, fp):
+        return config.log(f"roofer {out}: up to date, skipped")
+    tmp = dst.with_name(out + ".partial")
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True)
+    opts = [
+        x
+        for k, v in params.items()
+        for x in (f"--{k.replace('_', '-')}", *map(str, v if isinstance(v, tuple) else (v,)))
+    ]
+    # roofer v1.0.0 is amd64-only; the entrypoint is the roofer binary
+    subprocess.run(["docker", "run", "--rm", "--platform", "linux/amd64", "-v", f"{d}:/w", ROOFER, "--id-attribute", "building_id", "--srs", "EPSG:27700", "--compute-pc-98p", "-j", str(jobs), *opts, "/w/pc/pilot.laz", "/w/footprints.gpkg", f"/w/{tmp.name}"], check=True)  # fmt: skip
+    shutil.rmtree(dst, ignore_errors=True)
+    tmp.rename(dst)
+    done.touch()
+    config.log(f"roofer {out}: done")
+
+
 if __name__ == "__main__":
-    {"prep": prep}[sys.argv[1]](config.load())
+    {"prep": prep, "roofer": roofer}[sys.argv[1]](config.load())
