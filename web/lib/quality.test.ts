@@ -4,7 +4,7 @@ import { needsLightMap, QUALITY, selectQuality } from "./quality";
 
 describe("selectQuality", () => {
   it("maps detect-gpu tiers", () => {
-    expect(selectQuality(null, 3)).toBe("high");
+    expect(selectQuality(null, 3)).toBe("medium"); // high is opt-in
     expect(selectQuality(null, 2)).toBe("medium");
     expect(selectQuality(null, 1)).toBe("low");
     expect(selectQuality(null, 0)).toBe("low");

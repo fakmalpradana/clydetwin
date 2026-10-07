@@ -17,11 +17,14 @@ export const QUALITY: Record<Quality, QualitySettings> = {
 
 export const isQuality = (v: string | null | undefined): v is Quality => v === "low" || v === "medium" || v === "high";
 
-/** `?q=` wins; else tier 3+ is high, tier 2 medium, anything lower low. An unknown tier (GPU check skipped) is medium. */
+/**
+ * `?q=` wins; else tier 2+ is medium, anything lower low. High is opt-in: on a tier-3 MacBook it ran ~30 fps
+ * (DPR 2 + high clouds) while medium held 50+.
+ */
 export function selectQuality(q: string | null | undefined, tier: number | null): Quality {
   if (isQuality(q)) return q;
   if (tier == null) return "medium";
-  return tier >= 3 ? "high" : tier >= 2 ? "medium" : "low";
+  return tier >= 2 ? "medium" : "low";
 }
 
 /** Weak GPUs (tier below 2) and phones get the lighter /explore map instead of /immersive. */

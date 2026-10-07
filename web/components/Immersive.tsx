@@ -36,6 +36,8 @@ export default function Immersive() {
   const [wx, setWx] = useState<ReturnType<typeof parseWxOverride>>(null);
   const [illustrative, setIllustrative] = useState(false);
   const latest = useRef<CameraState | null>(null);
+  // camera to resume from when a quality switch remounts the scene
+  const [resumeCam, setResumeCam] = useState<CameraState | null>(null);
   const [cam, setCam] = useState<CameraState | null>(null);
   useEffect(() => {
     const h = setInterval(() => setCam(latest.current), 2000);
@@ -81,8 +83,9 @@ export default function Immersive() {
   const date = state ? shiftedDate(state.date, offsetH) : null;
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
+      {/* Scene is keyed on quality: shadow map size and the clouds pipeline are set up once per mount */}
       {state && date ? (
-        <Scene initial={state.initial} date={date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} mode={mode} followId={followId ?? vehicles[0]?.id ?? null} tourSpeed={tourSpeed} weather={wx ?? nowData?.weather ?? null} />
+        <Scene key={quality} initial={resumeCam ?? state.initial} date={date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} mode={mode} followId={followId ?? vehicles[0]?.id ?? null} tourSpeed={tourSpeed} weather={wx ?? nowData?.weather ?? null} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
@@ -127,6 +130,19 @@ export default function Immersive() {
               className={`flex-1 rounded px-2 py-1 capitalize disabled:opacity-40 ${mode === m ? "bg-accent text-bg" : "bg-bg/60 hover:text-accent"}`}
             >
               {m === "tour" ? "Drone tour" : m}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-1" role="group" aria-label="Quality">
+          <span className="mr-1 text-[10px] uppercase tracking-wider text-muted">Quality</span>
+          {(["low", "medium", "high"] as const).map((v) => (
+            <button
+              key={v}
+              aria-pressed={quality === v}
+              onClick={() => { setResumeCam(latest.current); setQuality(v); window.history.replaceState(null, "", setParam(window.location.search, "q", v)); }}
+              className={`flex-1 rounded px-2 py-0.5 capitalize ${quality === v ? "bg-accent text-bg" : "bg-bg/60 hover:text-accent"}`}
+            >
+              {v}
             </button>
           ))}
         </div>
