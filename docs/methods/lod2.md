@@ -106,6 +106,6 @@ the lower roof. The same effect drives the heavy tail of the roof RMSE. Building
 the live stack). Faces (walls and roofs, no floor) go into PostGIS as MultiPolygonZ in ETRS89 lon/lat/ellipsoidal
 height, pg2b3dm 2.27.0 tiles them (max 100 features per tile, root error 1500). Metadata is the LoD1 field set
 (`building_id, height, h_max, h_p90, ground_z_odn, ground_z_ellip, area_m2, height_source, lidar_year`, taken from the
-LoD1 heights table so styling is identical) plus `lod = 2`. Published to R2 `lod2/v1/`; `lod2/v1/pilot_ids.json` is the
+LoD1 heights table so styling is identical) plus `lod = 2`. 696 buildings in 16 tiles (7.0 MB, 0 validator errors). Published to R2 `lod2/v1/`; `lod2/v1/pilot_ids.json` is the
 list of `building_id`s that have LoD2 geometry: the web hides LoD1 features with these ids inside the pilot. LoD1
 stays in place everywhere else (and for the 32 pilot buildings without LoD2).
