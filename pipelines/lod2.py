@@ -100,11 +100,11 @@ def roofer(cfg: dict, out: str = "roofer", jobs: int = 8, **params) -> None:
     tmp = dst.with_name(out + ".partial")
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
-    opts = [
-        x
-        for k, v in params.items()
-        for x in (f"--{k.replace('_', '-')}", *map(str, v if isinstance(v, tuple) else (v,)))
-    ]
+    opts = []
+    for k, v in params.items():  # tuple -> several values, True -> bare flag (e.g. no_clip_terrain)
+        opts += [f"--{k.replace('_', '-')}"] + (
+            [] if str(v) == "True" else list(map(str, v if isinstance(v, tuple) else (v,)))
+        )
     # roofer v1.0.0 is amd64-only; the entrypoint is the roofer binary
     subprocess.run(["docker", "run", "--rm", "--platform", "linux/amd64", "-v", f"{d}:/w", ROOFER, "--id-attribute", "building_id", "--srs", "EPSG:27700", "--compute-pc-98p", "-j", str(jobs), *opts, "/w/pc/pilot.laz", "/w/footprints.gpkg", f"/w/{tmp.name}"], check=True)  # fmt: skip
     shutil.rmtree(dst, ignore_errors=True)
