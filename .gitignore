@@ -20,3 +20,5 @@ tiles/
 !tests/fixtures/**
 # the /about/data route is source, not data
 !web/app/about/data/
+# static web assets (small, licensed, attributed) live in web/public/data
+!web/public/data/
