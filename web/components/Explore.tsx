@@ -18,6 +18,8 @@ import { BUILDING_FIELDS, type BuildingProps } from "@/lib/tileset";
 import { analyticsRows, parseTheme, type ThemeId } from "@/lib/themes";
 import { loadPilotIds } from "@/lib/lod2";
 import ThemeLegend from "./ThemeLegend";
+import { ZoneControls, ZonePanel } from "./ZoneLegend";
+import type { ZoneMode, ZoneProps } from "@/lib/zones";
 import type * as CesiumNS from "cesium";
 
 type CesiumLib = typeof import("@/lib/cesium");
@@ -37,6 +39,7 @@ export default function Explore() {
     viewer: CesiumNS.Viewer;
     tileset: CesiumNS.Cesium3DTileset;
     lod2?: CesiumNS.Cesium3DTileset;
+    zones?: CesiumNS.GeoJsonDataSource;
     ionTerrain?: CesiumNS.TerrainProvider;
     flood?: CesiumNS.ImageryLayer;
   } | null>(null);
@@ -60,6 +63,10 @@ export default function Explore() {
   const [lod2, setLod2] = useState(true);
   const [pilotIds, setPilotIds] = useState<Set<string> | null>(null);
   const [lod2Err, setLod2Err] = useState(false);
+  const [zonesOn, setZonesOn] = useState(false);
+  const [zonesErr, setZonesErr] = useState(false);
+  const [zoneMode, setZoneMode] = useState<ZoneMode>("simd");
+  const [zone, setZone] = useState<ZoneProps | null>(null);
   const mobility = useMobility(useCallback(() => api.current, []), ready);
 
   useEffect(() => {
@@ -71,6 +78,8 @@ export default function Explore() {
       setLowGpu(q.get("gpu") === "low");
       setBm(parseBasemap(q));
       setTheme(parseTheme(q));
+      setZonesOn(q.get("zones") === "1");
+      setZoneMode(q.get("zm") === "density" ? "density" : "simd");
       setLod2(q.get("lod2") !== "0");
       const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q), basemap: parseBasemap(q) });
       if (disposed) return viewer.destroy();
@@ -102,7 +111,16 @@ export default function Explore() {
         if (prev) prev.feature.color = prev.color;
         prev = null;
         const picked = viewer.scene.pick(e.position);
-        const gid = picked?.id instanceof C.Entity ? picked.id.id : null;
+        const ent = picked?.id instanceof C.Entity ? picked.id : null;
+        const zp = ent?.properties?.dz22 ? (ent.properties.getValue(C.JulianDate.now()) as ZoneProps) : null;
+        if (zp) {
+          setSelected(null);
+          setGaugeId(null);
+          setZone(zp);
+          return;
+        }
+        setZone(null);
+        const gid = ent ? ent.id : null;
         if (gid) {
           setSelected(null);
           setGaugeId(gid);
@@ -180,6 +198,24 @@ export default function Explore() {
   }, [theme, ready, showLod2, pilotIds, buildings]);
 
   useEffect(() => {
+    const a = api.current;
+    if (!a) return;
+    if (!zonesOn) { if (a.zones) a.zones.show = false; return; }
+    if (a.zones) { a.zones.show = true; return; }
+    a.lib.loadZones(zoneMode).then((ds) => {
+      a.zones = ds;
+      a.viewer.dataSources.add(ds);
+    }, (e) => { console.warn("Data Zones failed", e); setZonesErr(true); setZonesOn(false); });
+    // zoneMode is applied by the effect below; only the first load reads it here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zonesOn, ready]);
+
+  useEffect(() => {
+    const a = api.current;
+    if (a?.zones) a.lib.restyleZones(a.zones, zoneMode);
+  }, [zoneMode, zonesOn]);
+
+  useEffect(() => {
     if (api.current) api.current.tileset.show = buildings;
   }, [buildings, ready]);
 
@@ -189,6 +225,16 @@ export default function Explore() {
     a.viewer.terrainProvider = terrain && a.ionTerrain ? a.ionTerrain : a.lib.flatTerrain();
   }, [terrain, ready]);
 
+  const setZones = (v: boolean) => {
+    setZonesErr(false);
+    setZonesOn(v);
+    if (!v) setZone(null);
+    window.history.replaceState(null, "", setParam(window.location.search, "zones", v ? "1" : "0"));
+  };
+  const changeZoneMode = (m: ZoneMode) => {
+    setZoneMode(m);
+    window.history.replaceState(null, "", setParam(window.location.search, "zm", m));
+  };
   const changeTheme = (t: ThemeId) => {
     setTheme(t);
     window.history.replaceState(null, "", setParam(window.location.search, "theme", t));
@@ -236,6 +282,7 @@ export default function Explore() {
         <div className="mt-3">
           <BasemapPicker value={bm} onChange={changeBasemap} />
         </div>
+        <ZoneControls on={zonesOn} mode={zoneMode} error={zonesErr} onOn={setZones} onMode={changeZoneMode} />
         <div className="mt-3"><ThemeLegend theme={theme} onChange={changeTheme} /></div>
         {mobility.controls}
         <WeatherWidget now={nowData} />
@@ -258,6 +305,7 @@ export default function Explore() {
       )}
 
       {mobility.panel}
+      {zone && <ZonePanel z={zone} onClose={() => setZone(null)} />}
 
       {selected && (
         <section className="absolute z-20 bottom-0 left-0 right-0 max-h-[55dvh] overflow-auto border-t border-line bg-panel/95 p-4 backdrop-blur sm:bottom-auto sm:left-auto sm:right-4 sm:top-16 sm:w-80 sm:rounded-lg sm:border">
