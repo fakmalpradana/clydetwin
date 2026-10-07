@@ -173,3 +173,7 @@ LoD1 universe) and `build/analytics/data_zones.geojson`. Parquet uses real nulls
 `epc_count`, `epc_sap_median`, `epc_rating`, `lb_category`, `conservation_area` (int 0/1) and `data_zone`. Tile properties
 have no nulls: text without a value is `"none"`, numbers without a value are `-1` (`noise_lden_db`, `epc_sap_median`),
 `epc_count` is 0. UPRN, TOID, addresses and every NGD or BHA field are not in the tiles.
+
+**Tile versions after the flood fix.** `lod1/v4/` (flood by footprint share, new `flood_share_max` real field, 0 when none)
+replaces v3 in the web; `lod2/v2/` carries the same analytics metadata as `lod1/v4/` plus `lod = 2` for the 696 pilot buildings
+(`pipelines/lod2_tiles.py`, `tiles_attrs.join_attrs`; `pilot_ids.json` is published beside its `tileset.json`). Older versions are untouched.
