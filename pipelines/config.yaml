@@ -21,6 +21,12 @@ pilot:
   bbox: [258500, 664500, 260500, 666500]
   buffer_m: 25                  # LAZ tiles / points are cut this far beyond the footprints
 
+lod2:
+  qa:                           # per-building gate before tiling (roofer plane-extrapolation wedges)
+    above_lidar_m: 3.0          # reject if a RoofSurface vertex > ground_z_odn + h_max + this
+    ground_clearance_m: 1.0     # reject if a RoofSurface vertex < ground_z_odn + this ...
+    min_h_p70_m: 4.0            # ... on a building with h_p70 above this
+
 lidar:
   collection_laz: scotland-gov/lidar/phase-5/laz   # 1 km tiles, 4 pts/m2, same flight as the DSM/DTM
   # Phase 5 (Fugro for SPEN, flown 2020-05-28 .. 2021-04-12) covers 100% of the AOI; see docs/data-verification.md

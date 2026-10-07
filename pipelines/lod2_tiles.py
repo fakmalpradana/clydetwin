@@ -4,7 +4,7 @@
 Heights use the same OSTN15 + OSGM15 code as LoD1 (`datum.odn_to_ellipsoidal`), so a LoD2 roof sits where the LoD1
 extrusion of the same footprint did. Metadata fields are LoD1's (from build/aoi/heights.gpkg) plus `lod = 2`.
 Inputs are read from $CLYDETWIN_PILOT (default build/pilot). The tile database must not be the live stack: set COMPOSE_PROJECT_NAME=ctwin-tiles and POSTGRES_PORT=<free port>.
-Output: build/pilot/tiles/lod2_v3/ (tileset.json, subtrees, glb) and pilot_ids.json (building_ids that have LoD2).
+Output: build/pilot/tiles/lod2_v4/ (tileset.json, subtrees, glb) and pilot_ids.json (building_ids that have LoD2).
 """
 
 import json
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import shapely
 from shapely.geometry import MultiPolygon, Polygon
 
@@ -23,7 +24,9 @@ from .datum import odn_to_ellipsoidal
 
 PG2B3DM = "geodan/pg2b3dm@sha256:318d19d0612603d272eb9b719c747aa6786e02b1a400190aa12715f0486a559f"  # 2.27.0, as LoD1
 ATTRS = tiles_attrs.ATTRS + ",lod"
-NAME = "lod2_v3"  # build/pilot/tiles/lod2_v3, published to R2 lod2/v3/ (own triangulation, see triangulate_face)
+NAME = (
+    "lod2_v4"  # build/pilot/tiles/lod2_v4, published to R2 lod2/v4/ (own triangulation + QA gate)
+)
 # LoD2 tiles carry ~50x the triangles per building of LoD1: far fewer features per tile
 TUNING = ["--max_features_per_tile", "100", "-g", "1500"]
 
@@ -118,6 +121,23 @@ def building_geometry(feat: dict) -> MultiPolygon | None:
     return MultiPolygon([Polygon(t) for t in ll])
 
 
+def qa_reason(feat: dict, ground_z, h_max, h_p70, qa: dict) -> str | None:
+    """Gate: 'above_lidar' / 'reaches_ground' when a RoofSurface vertex is implausible against the LiDAR, else None."""
+    z = [r[:, 2] for _, o, hs in lod2_qa.roof_faces(feat) for r in (o, *hs)]
+    if not z or ground_z is None or np.isnan(ground_z):
+        return None
+    z = np.concatenate(z)
+    if not np.isnan(h_max) and z.max() > ground_z + h_max + qa["above_lidar_m"]:
+        return "above_lidar"
+    if (
+        not np.isnan(h_p70)
+        and h_p70 > qa["min_h_p70_m"]
+        and z.min() < ground_z + qa["ground_clearance_m"]
+    ):
+        return "reaches_ground"
+    return None
+
+
 def build_rows(run: str) -> gpd.GeoDataFrame:
     feats = lod2_qa.read_cjseq(
         next(
@@ -126,11 +146,27 @@ def build_rows(run: str) -> gpd.GeoDataFrame:
             )
         )
     )
-    rows = [(f["id"], building_geometry(f)) for f in feats]
+    h = gpd.read_file(config.build_dir("aoi") / "heights.gpkg", ignore_geometry=True)
+    hi = h.set_index("building_id")
+    qa = config.load()["lod2"]["qa"]
+    rows, rejects = [], []
+    for f in feats:
+        why = None
+        if f["id"] in hi.index:
+            r = hi.loc[f["id"]]
+            why = qa_reason(f, r.ground_z_odn, r.h_max, r.h_p70, qa)
+        if why:
+            rejects.append((f["id"], why))
+        else:
+            rows.append((f["id"], building_geometry(f)))
+    pd.DataFrame(rejects, columns=["building_id", "reason"]).to_csv(
+        config.build_dir("pilot") / "lod2_qa_rejects.csv", index=False
+    )
+    counts = pd.Series([r for _, r in rejects], dtype=str).value_counts().to_dict()
+    config.log(f"LoD2 QA gate: {len(rejects)} rejected {counts}, {len(rows)} kept")
     g = gpd.GeoDataFrame(
         [{"building_id": i, "geometry": m} for i, m in rows if m is not None], crs=4326
     )  # ETRS89 lon/lat labelled 4326 (identical at the metre level), z stays ellipsoidal
-    h = gpd.read_file(config.build_dir("aoi") / "heights.gpkg", ignore_geometry=True)
     cols = ["building_id", "height", "h_max", "h_p90", "ground_z_odn", "ground_z_ellip", "area_m2", "height_source", "lidar_year"]  # fmt: skip
     g = g.merge(h[cols], on="building_id", how="inner")
     g["lod"] = 2
