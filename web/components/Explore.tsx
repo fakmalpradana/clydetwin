@@ -190,13 +190,16 @@ export default function Explore({ scenario }: { scenario?: "flood" }) {
     a.lib.floodLayer().then((l) => { a.viewer.imageryLayers.add(l); a.flood = l; }, (e) => { console.warn("flood layer failed", e); setFloodErr(true); setFlood(false); });
   }, [flood, ready]);
 
-  // LoD2 replaces LoD1 inside the pilot, but only in the height theme: its tiles carry no analytics attributes.
-  const showLod2 = lod2 && theme === "height" && !!pilotIds;
+  // LoD2 replaces LoD1 inside the pilot in every theme (lod2/v2 carries the same analytics attributes).
+  const showLod2 = lod2 && !!pilotIds;
   useEffect(() => {
     const a = api.current;
     if (!a) return;
     a.tileset.style = a.lib.buildingStyle(theme, showLod2 ? pilotIds! : undefined);
-    if (a.lod2) a.lod2.show = showLod2 && buildings;
+    if (a.lod2) {
+      a.lod2.style = a.lib.buildingStyle(theme);
+      a.lod2.show = showLod2 && buildings;
+    }
   }, [theme, ready, showLod2, pilotIds, buildings]);
 
   useEffect(() => {
@@ -272,7 +275,6 @@ export default function Explore({ scenario }: { scenario?: "flood" }) {
         {!scenario && <label className="flex items-center gap-2 py-1" title="George Square and Merchant City, roofer LoD2.2">
           <input type="checkbox" checked={lod2} disabled={!pilotIds} onChange={(e) => { setLod2(e.target.checked); window.history.replaceState(null, "", setParam(window.location.search, "lod2", e.target.checked ? "1" : "0")); }} /> LoD2 pilot{lod2Err ? " (unavailable)" : ""}
         </label>}
-        {!scenario && lod2 && pilotIds && theme !== "height" && <p className="text-[10px] text-muted">LoD2 is shown in the Height theme only; it has no analytics attributes.</p>}
         <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs terrain (own or ion); flat ground is used instead"}>
           <input type="checkbox" checked={terrain && ion} disabled={!ion} onChange={(e) => setTerrain(e.target.checked)} /> Terrain{ion ? "" : " (unavailable)"}
         </label>
