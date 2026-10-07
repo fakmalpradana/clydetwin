@@ -99,3 +99,9 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | B7 | `pipelines/zones.py`: Data Zones 2022 choropleth GeoJSON (1,003 zones) with mid-2024 population, density and SIMD 2020v2 carried over by area-weighted DZ2011 to DZ2022 lookup (documented limits); `data_zone` key per building; pytest | done |
 | B3 | X3 `pipelines/flood.py`: SEPA flood likelihood (high/medium/low) per building for river, coastal (MapServer) and surface water (download); `flood_max`; pytest | done (3,847 buildings high, 8,572 medium) |
 | B8 | Output contract: `make analytics` -> `build/analytics/buildings_attrs.parquet` + `data_zones.geojson`, schema in `docs/methods/analytics.md`; `make tiles-attrs` rebuilds the LoD1 tiles with the new attributes (`lod1/v3/`), 3d-tiles-validator 0 errors | done |
+
+## Phase 4: Analytical Twin (web workstream, branch `p4/web`)
+
+| Task | Description | Status |
+|---|---|---|
+| C1 | Thematic switcher in `/explore` (`lib/themes.ts`, `ThemeLegend`, `?theme=`): height, EPC rating, flood, noise, heritage, each with a colourblind-safe legend (cividis, YlOrBr, magma, Okabe-Ito). One rule list drives both the Cesium 3D Tiles style and the JS classifier; tile sentinels (`none`, -1) are neutral grey and labelled no data / not mapped / not designated, never "safe". Info panel shows volume, storeys (estimate), flood, noise, EPC, listing, Data Zone with caveats (EPC domestic only, noise map not for property enquiries). Env vars documented in `web/.env.example` | done |

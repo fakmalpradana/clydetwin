@@ -22,6 +22,21 @@ export interface BuildingProps {
   area_m2: number; // m2
   height_source: "lidar" | "default"; // default = 6 m placeholder
   lidar_year: number;
+  // Analytics attributes (lod1/v3). Sentinels: text 'none', numbers -1, epc_count 0. See lib/themes.ts.
+  volume_m3?: number;
+  storeys_est?: number;
+  flood_river?: string;
+  flood_coastal?: string;
+  flood_surface?: string;
+  flood_max?: string;
+  noise_lden_db?: number;
+  noise_band?: string;
+  epc_count?: number;
+  epc_sap_median?: number;
+  epc_rating?: string;
+  lb_category?: string;
+  conservation_area?: number;
+  data_zone?: string;
 }
 
 export const BUILDING_FIELDS: { key: keyof BuildingProps; label: string; unit?: string }[] = [

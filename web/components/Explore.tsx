@@ -14,7 +14,9 @@ import WeatherWidget from "./WeatherWidget";
 import { parseBasemap, type BasemapId } from "@/lib/basemap";
 import Attribution from "./Attribution";
 import BasemapPicker from "./BasemapPicker";
-import { BUILDING_FIELDS, DEFAULT_HEIGHT_COLOR, HEIGHT_RAMP, type BuildingProps } from "@/lib/tileset";
+import { BUILDING_FIELDS, type BuildingProps } from "@/lib/tileset";
+import { analyticsRows, parseTheme, type ThemeId } from "@/lib/themes";
+import ThemeLegend from "./ThemeLegend";
 import type * as CesiumNS from "cesium";
 
 type CesiumLib = typeof import("@/lib/cesium");
@@ -52,6 +54,7 @@ export default function Explore() {
   const [ion, setIon] = useState(false);
   const [lowGpu, setLowGpu] = useState(false);
   const [bm, setBm] = useState<BasemapId>("dark");
+  const [theme, setTheme] = useState<ThemeId>("height");
   const mobility = useMobility(useCallback(() => api.current, []), ready);
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function Explore() {
       if (disposed || !container.current) return;
       setLowGpu(q.get("gpu") === "low");
       setBm(parseBasemap(q));
+      setTheme(parseTheme(q));
       const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q), basemap: parseBasemap(q) });
       if (disposed) return viewer.destroy();
       setIon(terrainKind !== "flat");
@@ -153,6 +157,10 @@ export default function Explore() {
   }, [flood, ready]);
 
   useEffect(() => {
+    if (api.current) api.current.tileset.style = api.current.lib.buildingStyle(theme);
+  }, [theme, ready]);
+
+  useEffect(() => {
     if (api.current) api.current.tileset.show = buildings;
   }, [buildings, ready]);
 
@@ -162,6 +170,10 @@ export default function Explore() {
     a.viewer.terrainProvider = terrain && a.ionTerrain ? a.ionTerrain : a.lib.flatTerrain();
   }, [terrain, ready]);
 
+  const changeTheme = (t: ThemeId) => {
+    setTheme(t);
+    window.history.replaceState(null, "", setParam(window.location.search, "theme", t));
+  };
   const carried = typeof window === "undefined" ? "" : carry(window.location.search);
   const changeBasemap = (id: BasemapId) => {
     setBm(id);
@@ -201,14 +213,7 @@ export default function Explore() {
         <div className="mt-3">
           <BasemapPicker value={bm} onChange={changeBasemap} />
         </div>
-        <p className="mt-3 mb-1 font-medium text-muted uppercase tracking-wider">Height (m)</p>
-        <div className="flex h-2 overflow-hidden rounded-sm">
-          {HEIGHT_RAMP.map(([, c]) => (<span key={c} className="flex-1" style={{ background: c }} />))}
-        </div>
-        <div className="mt-1 flex justify-between text-[10px] text-muted"><span>&lt;6</span><span>16</span><span>50+</span></div>
-        <p className="mt-2 flex items-center gap-2 text-[11px] text-muted">
-          <span className="inline-block h-2 w-3 rounded-sm" style={{ background: DEFAULT_HEIGHT_COLOR }} /> No LiDAR height (6 m default)
-        </p>
+        <div className="mt-3"><ThemeLegend theme={theme} onChange={changeTheme} /></div>
         {mobility.controls}
         <WeatherWidget now={nowData} />
         <p className="mt-2 text-[10px] text-muted">Sun: Glasgow, {glasgowTime(sceneDate(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)))}</p>
@@ -245,9 +250,23 @@ export default function Explore() {
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-xs text-muted">
-            LoD1 block height (70th percentile); towers shown fully in LoD2 (coming).
-          </p>
+          {analyticsRows(selected as unknown as Record<string, unknown>).length > 0 && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3 text-sm">
+              {analyticsRows(selected as unknown as Record<string, unknown>).map((r) => (
+                <div key={r.label} className="contents">
+                  <dt className="text-muted">{r.label}</dt>
+                  <dd className="text-right font-mono text-xs leading-5">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <ul className="mt-3 list-disc space-y-1 pl-4 text-[11px] text-muted">
+            <li>LoD1 block height (70th percentile); towers are shown fully in the LoD2 pilot.</li>
+            <li>Storeys are an estimate (height / 3 m), not a count. Volume is footprint area x height.</li>
+            <li>EPC covers domestic certificates only. &quot;No data&quot; means nothing on record, not a good or bad result.</li>
+            <li>Flood: SEPA indicative likelihood; &quot;not mapped&quot; is not a guarantee of safety.</li>
+            <li>Noise: strategic map for planning, not for property enquiries.</li>
+          </ul>
           {selected.height_source === "default" && (
             <p className="mt-3 text-xs text-muted">No LiDAR coverage for this footprint: height is a 6 m placeholder.</p>
           )}

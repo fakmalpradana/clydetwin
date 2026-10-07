@@ -4,10 +4,9 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { CameraState } from "./camera";
 import { DEFAULT_BASEMAP, getBasemap, resolveTemplate, type BasemapId } from "./basemap";
+import { styleConditions, type ThemeId } from "./themes";
 import {
-  DEFAULT_HEIGHT_COLOR,
   FLAT_GROUND_M,
-  HEIGHT_RAMP,
   ION_TOKEN,
   TERRAIN_URL,
   TILESET_URL,
@@ -119,16 +118,9 @@ export async function createViewer(
   return { viewer, terrain, realTerrain };
 }
 
-/** Viridis-by-height style; height_source=default buildings neutral. */
-export function buildingStyle() {
-  const conditions: [string, string][] = [
-    ["${height_source} === 'default'", `color('${DEFAULT_HEIGHT_COLOR}')`],
-    ...HEIGHT_RAMP.slice(0, -1).map(
-      ([max, col]) => [`\${height} < ${max}`, `color('${col}')`] as [string, string],
-    ),
-    ["true", `color('${HEIGHT_RAMP[HEIGHT_RAMP.length - 1][1]}')`],
-  ];
-  return new Cesium.Cesium3DTileStyle({ color: { conditions } });
+/** Style for a theme (height = viridis by height). Sentinel values are neutral grey, see lib/themes.ts. */
+export function buildingStyle(theme: ThemeId = "height") {
+  return new Cesium.Cesium3DTileStyle({ color: { conditions: styleConditions(theme) } });
 }
 
 export async function loadBuildings(viewer: Cesium.Viewer) {
