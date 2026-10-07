@@ -16,7 +16,7 @@ import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
-import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
+import { featureIds, filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
 import Rain from "./Rain";
 import { followPose, tourPose, type CamMode } from "@/lib/camera-modes";
 import { attachFacade, facadeUniforms, patchFacade } from "./facade";
@@ -86,15 +86,17 @@ const onLod1 = (pilot: Set<string>) => (e: { scene: Object3D }) => {
     const fid = g?.getAttribute("_feature_id_0");
     const sm = (mesh.userData.structuralMetadata ?? e.scene.userData.structuralMetadata) as Metadata | undefined;
     if (!g || !fid || !sm || !g.index) return;
+    // getX, not fid.array: the attribute is interleaved with position and normal in these tiles
+    const ids = featureIds(fid);
     const hidden = new Set<number>();
-    for (const id of new Set(Array.from(fid.array as ArrayLike<number>))) {
+    for (const id of new Set(ids)) {
       try {
         if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
       } catch {
         // feature id outside the property table: keep the triangles
       }
     }
-    if (hidden.size) g.setIndex(new BufferAttribute(filterIndex(g.index.array, fid.array as ArrayLike<number>, hidden), 1));
+    if (hidden.size) g.setIndex(new BufferAttribute(filterIndex(g.index.array, ids, hidden), 1));
   });
 };
 // Terrain keeps the material the quantized-mesh loader created: ImageOverlayPlugin wraps it to drape the basemap,
