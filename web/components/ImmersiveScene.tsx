@@ -17,6 +17,7 @@ import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
+import { cloudParams, type WeatherFx } from "@/lib/weatherfx";
 import { QUALITY, type Quality } from "@/lib/quality";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
@@ -178,6 +179,34 @@ function Fps() {
   return null;
 }
 
+/** Volumetric clouds (takram), loaded on demand so the low preset never downloads them. Layer cover follows /now. */
+function SceneClouds({ weather, quality }: { weather: WeatherFx | null; quality: "medium" | "high" }) {
+  const [mod, setMod] = useState<typeof import("@takram/three-clouds/r3f") | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import("@takram/three-clouds/r3f").then((m) => alive && setMod(m));
+    return () => { alive = false; };
+  }, []);
+  const p = useMemo(() => cloudParams(weather ?? { cloud_low: 30, cloud_mid: 20, cloud_high: 30 }), [weather]);
+  if (!mod) return <></>;
+  const { Clouds, CloudLayer } = mod;
+  return (
+    <Clouds
+      disableDefaultLayers
+      qualityPreset={quality}
+      coverage={p.coverage}
+      localWeatherTexture="/clouds/local_weather.png"
+      shapeTexture="/clouds/shape.bin"
+      shapeDetailTexture="/clouds/shape_detail.bin"
+      turbulenceTexture="/clouds/turbulence.png"
+    >
+      {p.layers.map((l, i) => (
+        <CloudLayer key={i} index={i} {...l} shadow />
+      ))}
+    </Clouds>
+  );
+}
+
 /** Dev HUD (?hud=1): preset and fps, written to the page's #hud element. */
 function Hud({ quality }: { quality: Quality }) {
   const acc = useRef({ frames: 0, last: 0 });
@@ -325,7 +354,9 @@ export default function ImmersiveScene({
   vehicles,
   quality,
   hud,
+  weather,
 }: {
+  weather: WeatherFx | null;
   quality: Quality;
   hud: boolean;
   vehicles: Vehicle[];
@@ -353,6 +384,7 @@ export default function ImmersiveScene({
     [],
   );
   const qs = QUALITY[quality];
+  const cloudsOn = qs.clouds !== false;
   const hasIon = ION_TOKEN.length > 0;
   // LoD1 waits for the pilot id list so its tiles are never drawn without the hole.
   const [pilot, setPilot] = useState<Set<string> | null | "failed">(null);
@@ -413,7 +445,8 @@ export default function ImmersiveScene({
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />
         {hud && <Hud quality={quality} />}
-        <EffectComposer multisampling={0}>
+        <EffectComposer multisampling={0} enableNormalPass={cloudsOn}>
+          {cloudsOn && <SceneClouds weather={weather} quality={qs.clouds as "medium" | "high"} />}
           <AerialPerspective />
           {qs.smaa ? <SMAA /> : <></>}
           <ToneMapping mode={ToneMappingMode.AGX} />

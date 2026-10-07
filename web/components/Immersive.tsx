@@ -12,6 +12,7 @@ import { sceneTime } from "@/lib/time";
 import { useConditions } from "@/lib/useConditions";
 import Ticker from "./Ticker";
 import { useVehicles } from "@/lib/useVehicles";
+import { parseWxOverride } from "@/lib/weatherfx";
 import { selectQuality, type Quality } from "@/lib/quality";
 import { FIXTURE } from "@/lib/api";
 import { MODE_COLOR, MODE_LABEL, type Mode } from "@/lib/vehicles";
@@ -27,6 +28,7 @@ export default function Immersive() {
   const [bm, setBm] = useState<BasemapId>("esri");
   const [quality, setQuality] = useState<Quality>("medium");
   const [hud, setHud] = useState(false);
+  const [wx, setWx] = useState<ReturnType<typeof parseWxOverride>>(null);
   const [illustrative, setIllustrative] = useState(false);
   const latest = useRef<CameraState | null>(null);
   const [cam, setCam] = useState<CameraState | null>(null);
@@ -54,6 +56,7 @@ export default function Immersive() {
       }
       setQuality(selectQuality(q.get("q"), gpuTier));
       setHud(q.get("hud") === "1");
+      setWx(parseWxOverride(q.get("wx")));
       latest.current = initial;
       setBm(parseBasemap(q, "esri"));
       const time = sceneTime(q, true);
@@ -68,7 +71,7 @@ export default function Immersive() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       {state ? (
-        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} />
+        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} weather={wx ?? nowData?.weather ?? null} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
