@@ -10,7 +10,7 @@ import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesO
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { BufferAttribute, type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { BufferAttribute, type DirectionalLight, Group, Matrix4, Mesh, Quaternion, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
@@ -198,6 +198,21 @@ function GroundPlane() {
 }
 
 /**
+ * Far-field ground: a spherical cap (80 km) just below sea level, under our terrain. The terrain data ends at the AOI
+ * edge (~13 km out), and without this its stepped far edge showed as a dashed line against the sky.
+ */
+function FarGround({ anchor }: { anchor: Vector3 }) {
+  const q = useMemo(() => new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), anchor.clone().normalize()), [anchor]);
+  const r = anchor.length() - FLAT_GROUND_M + 45;
+  return (
+    <mesh quaternion={q}>
+      <sphereGeometry args={[r, 64, 48, 0, Math.PI * 2, 0, 80000 / r]} />
+      <meshStandardMaterial color="#3a4048" roughness={1} />
+    </mesh>
+  );
+}
+
+/**
  * River gauges as a pole with a coloured ball, standing on the FLAT_GROUND_M plane (ellipsoidal metres) like the
  * ground fallback; the poles are tall enough to read from the default camera and to stay visible over our own terrain.
  */
@@ -367,6 +382,7 @@ export default function ImmersiveScene({
             <GroundPlane />
           )}
         </group>
+        {TERRAIN_URL && <FarGround anchor={anchor} />}
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
