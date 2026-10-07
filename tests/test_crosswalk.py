@@ -24,6 +24,6 @@ def test_match_and_per_building():
     assert m.dist_m[2] == 1.0 and m.dist_m[1] == 0.0
     xw = m.reset_index().assign(toid=["t1", "t1", "t2"])
     pb = crosswalk.per_building(xw).set_index("building_id")
-    assert pb.loc["b", ["n_uprn", "n_toid"]].tolist() == [2, 2]
+    assert pb.loc["b", ["n_units", "n_toid"]].tolist() == [2, 2]
     assert pb.loc["a", "toid"] == "t1"
-    assert pd.api.types.is_integer_dtype(pb.n_uprn)
+    assert pd.api.types.is_integer_dtype(pb.n_units)

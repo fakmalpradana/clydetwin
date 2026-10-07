@@ -44,3 +44,27 @@ layers exist only as MapServer services). `pipelines/noise.py` takes the **maxim
 Limits: strategic modelling at 10 m is not a property-level assessment (the publisher says so); the 10 m buffer
 picks up the road in front of a building in narrow streets; a building's quiet facade is not represented.
 Result: median 55.9 dB, 75+ dB for 713 buildings, 70+ dB for 3,345.
+
+## B5. EPC (domestic)
+
+Source: the Scottish EPC Register open dataset (domestic certificates, Q2 2016 to Q2 2026, 40 quarterly CSVs). The
+open file has no non-domestic certificates, so non-domestic buildings carry no EPC. The `OSG_REFERENCE_NUMBER`
+column is the UPRN (Glasgow City certificates matched to the crosswalk: 165,769 of 166,885 UPRNs, 99.3%, which also
+confirms that the column is the OS UPRN).
+
+`pipelines/epc.py` reads **only** the UPRN, lodgement date, SAP score and local authority columns: address columns are
+never loaded. The newest certificate per UPRN is kept, UPRNs are mapped to buildings through the crosswalk, and the
+UPRN is dropped. `attrs.check_public_columns` fails the build, and `tests/test_epc.py` fails CI, if any column name
+contains address, postcode, uprn, osg_, ngd or bha.
+
+| Field | Type | Domain |
+|---|---|---|
+| `epc_count` | int32 | number of dwellings with a current certificate in the building; 0 when none |
+| `epc_sap_median` | float | median SAP energy efficiency score (1-100) of those certificates; null when `epc_count` is 0 |
+| `epc_rating` | string | SAP band of the median score: A (92+), B (81-91), C (69-80), D (55-68), E (39-54), F (21-38), G (1-20); null when none |
+| `epc_latest_year` | int16 | year of the newest certificate; null when none |
+
+Coverage: 44,711 of 86,286 buildings (51.8%) have at least one certificate; rating counts C 24,459, D 13,672,
+B 3,710, E 2,081, A 476, F 260, G 53. Limits: certificates exist only for dwellings that were sold, let or
+retrofitted since 2016; a building's rating is the median over its certified flats, so it describes the certified
+part. For a building with one certificate, the rating is that dwelling's rating (no address is published).

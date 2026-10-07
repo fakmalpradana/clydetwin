@@ -5,7 +5,7 @@ OpenMap Local footprints carry no TOID, so: OS Open UPRN points are joined to fo
 nearest footprint within `uprn_match_max_m`), and OS Open Linked Identifiers (BLPU-UPRN-TopographicArea-TOID) gives
 each UPRN its TOID. A building's TOID is the most common TOID among its UPRNs.
 Output: build/analytics/crosswalk.parquet (one row per matched UPRN, internal) and crosswalk_buildings.parquet
-(one row per building_id: n_uprn, toid, n_toid).
+(one row per building_id: n_units, toid, n_toid).
 """
 
 import geopandas as gpd
@@ -66,7 +66,7 @@ def per_building(xw: pd.DataFrame) -> pd.DataFrame:
         .toid.agg(lambda s: s.value_counts().index[0])
     )
     return pd.DataFrame(
-        {"n_uprn": g.UPRN.size(), "toid": toid, "n_toid": g.toid.nunique()}
+        {"n_units": g.UPRN.size(), "toid": toid, "n_toid": g.toid.nunique()}
     ).reset_index()
 
 

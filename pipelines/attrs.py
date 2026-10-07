@@ -14,6 +14,16 @@ from . import config
 BASE = ["building_id", "height", "height_source", "area_m2"]
 
 
+# Hard rule (licences, reference-plan 4.2): no address data, no UPRN, and no OS NGD / Digimap BHA fields in public output.
+FORBIDDEN = ("address", "postcode", "posttown", "postal", "uprn", "osg_", "ngd", "bha")
+
+
+def check_public_columns(cols) -> None:
+    bad = [c for c in cols if any(f in str(c).lower() for f in FORBIDDEN)]
+    if bad:
+        raise ValueError(f"forbidden columns in a public output: {bad}")
+
+
 def storeys(height: pd.Series, storey_m: float) -> pd.Series:
     """Heuristic floor count: height / storey_m rounded, at least 1."""
     return np.maximum(1, np.round(height / storey_m)).astype("int16")
@@ -28,9 +38,10 @@ def assemble(cfg: dict | None = None) -> pd.DataFrame:
     for part in sorted(out.glob("part_*.parquet")) + [out / "crosswalk_buildings.parquet"]:
         if part.exists():
             df = df.merge(pd.read_parquet(part), on="building_id", how="left")
-    for c in ("n_uprn", "n_toid"):  # counts: no UPRN means 0, not null
+    for c in ("n_units", "n_toid", "epc_count"):  # counts: no UPRN means 0, not null
         if c in df:
             df[c] = df[c].fillna(0).astype("int32")
+    check_public_columns(df.columns)
     df.to_parquet(out / "buildings_attrs.parquet", index=False)
     config.log(f"buildings_attrs.parquet: {len(df)} rows, columns {list(df.columns)}")
     return df
