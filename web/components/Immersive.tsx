@@ -12,6 +12,7 @@ import { sceneTime } from "@/lib/time";
 import { useConditions } from "@/lib/useConditions";
 import Ticker from "./Ticker";
 import { useVehicles } from "@/lib/useVehicles";
+import { selectQuality, type Quality } from "@/lib/quality";
 import { FIXTURE } from "@/lib/api";
 import { MODE_COLOR, MODE_LABEL, type Mode } from "@/lib/vehicles";
 
@@ -24,6 +25,8 @@ export default function Immersive() {
   const modes = [...new Set(vehicles.map((v) => v.mode))] as Mode[];
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
   const [bm, setBm] = useState<BasemapId>("esri");
+  const [quality, setQuality] = useState<Quality>("medium");
+  const [hud, setHud] = useState(false);
   const [illustrative, setIllustrative] = useState(false);
   const latest = useRef<CameraState | null>(null);
   const [cam, setCam] = useState<CameraState | null>(null);
@@ -38,15 +41,19 @@ export default function Immersive() {
       const q = new URLSearchParams(window.location.search);
       const initial = paramsToCamera(q, IMMERSIVE_CAMERA);
       // Weak GPUs and phones get the lighter Explore map (with a way back in).
+      let gpuTier: number | null = null;
       if (q.get("force") !== "1") {
         const { getGPUTier } = await import("detect-gpu");
         const tier = await getGPUTier({ benchmarksURL: "/gpu-benchmarks" }).catch(() => ({ tier: 0, isMobile: true }));
         if (cancelled) return;
+        gpuTier = tier.tier;
         if (tier.tier < 2 || tier.isMobile) {
           router.replace(`/explore?${cameraQuery(initial)}&gpu=low${carry(window.location.search)}`);
           return;
         }
       }
+      setQuality(selectQuality(q.get("q"), gpuTier));
+      setHud(q.get("hud") === "1");
       latest.current = initial;
       setBm(parseBasemap(q, "esri"));
       const time = sceneTime(q, true);
@@ -61,7 +68,7 @@ export default function Immersive() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       {state ? (
-        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} />
+        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
@@ -94,6 +101,7 @@ export default function Immersive() {
           </p>
         )}
       </aside>
+      {hud && <p id="hud" className="absolute right-4 top-24 z-10 rounded bg-bg/70 px-2 py-1 font-mono text-[11px] text-muted backdrop-blur">quality: {quality}</p>}
       {illustrative && (
         <p className="absolute right-4 top-14 z-10 rounded bg-bg/60 px-2 py-1 text-[11px] text-muted backdrop-blur">
           Sun: illustrative (it is night in Glasgow)

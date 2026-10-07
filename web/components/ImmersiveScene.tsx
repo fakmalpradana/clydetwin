@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 "use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, ToneMapping } from "@react-three/postprocessing";
+import { EffectComposer, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { AerialPerspective, Atmosphere, Sky, SkyLight, SunLight } from "@takram/three-atmosphere/r3f";
 import { GlobeControls, TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
@@ -17,6 +17,7 @@ import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
+import { QUALITY, type Quality } from "@/lib/quality";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
@@ -177,6 +178,24 @@ function Fps() {
   return null;
 }
 
+/** Dev HUD (?hud=1): preset and fps, written to the page's #hud element. */
+function Hud({ quality }: { quality: Quality }) {
+  const acc = useRef({ frames: 0, last: 0 });
+  useFrame(() => {
+    const a = acc.current;
+    const now = performance.now();
+    a.frames++;
+    if (!a.last) a.last = now;
+    if (now - a.last >= 500) {
+      const el = document.getElementById("hud");
+      if (el) el.textContent = `quality: ${quality} | ${Math.round((a.frames * 1000) / (now - a.last))} fps`;
+      a.frames = 0;
+      a.last = now;
+    }
+  });
+  return null;
+}
+
 /** Flat disc tangent to the ellipsoid at FLAT_GROUND_M, used when no ion terrain is available. */
 function GroundPlane() {
   const m = useMemo(
@@ -304,7 +323,11 @@ export default function ImmersiveScene({
   stations,
   tick,
   vehicles,
+  quality,
+  hud,
 }: {
+  quality: Quality;
+  hud: boolean;
   vehicles: Vehicle[];
   stations: StationFeature[];
   tick: number;
@@ -329,6 +352,7 @@ export default function ImmersiveScene({
       ),
     [],
   );
+  const qs = QUALITY[quality];
   const hasIon = ION_TOKEN.length > 0;
   // LoD1 waits for the pilot id list so its tiles are never drawn without the hole.
   const [pilot, setPilot] = useState<Set<string> | null | "failed">(null);
@@ -341,7 +365,7 @@ export default function ImmersiveScene({
       shadows="percentage"
       gl={{ antialias: false, depth: false, stencil: false, powerPreference: "high-performance" }}
       camera={{ fov: 55, near: 1, far: 1e7 }}
-      dpr={[1, 1.5]}
+      dpr={qs.dpr}
     >
       <Atmosphere date={date}>
         <Sky />
@@ -350,7 +374,7 @@ export default function ImmersiveScene({
           <SunLight
             castShadow
             distance={10000}
-            shadow-mapSize={[4096, 4096]}
+            shadow-mapSize={[qs.shadowMap, qs.shadowMap]}
             shadow-camera-near={1}
             shadow-camera-far={20000}
             shadow-bias={-0.0004}
@@ -388,8 +412,10 @@ export default function ImmersiveScene({
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />
+        {hud && <Hud quality={quality} />}
         <EffectComposer multisampling={0}>
           <AerialPerspective />
+          {qs.smaa ? <SMAA /> : <></>}
           <ToneMapping mode={ToneMappingMode.AGX} />
         </EffectComposer>
       </Atmosphere>

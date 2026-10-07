@@ -116,3 +116,4 @@ Backend workstream A (branch `p2/backend`); web workstream B (branch `p2/web`). 
 | Task | Description | Status |
 |---|---|---|
 | 1 | Horizon artefact: the dashed far line is the end of our own terrain tileset (bounds lat 55.74 to 55.97, about 13 km north of the default camera) seen against the sky, a stepped edge because the coarse far tiles end at different heights. Fixed with a spherical cap of ground (80 km, just below sea level) under the terrain, so the edge fades into the aerial-perspective haze | done |
+| 2 | Quality presets `low \| medium \| high` (`lib/quality.ts`): detect-gpu tier 3+ high, 2 medium, else low (unknown tier medium), `?q=` overrides. Each sets DPR, sun shadow map size (1024/2048/4096), clouds (off/medium/high, used from task 3) and SMAA (high only). `?hud=1` shows the preset and a live fps in a small HUD. vitest `quality.test.ts` | done |
