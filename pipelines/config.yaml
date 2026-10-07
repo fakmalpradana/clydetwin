@@ -45,6 +45,7 @@ analytics:
   raw_dir: data/raw/analytics
   out_dir: build/analytics
   uprn_match_max_m: 2           # UPRN to footprint: inside, or nearest within this distance
+  flood_min_share: 0.10         # X3: a building is exposed only if >= this share of its footprint lies in the extent
   storey_height_m: 3.0          # X1 storeys = height / this (documented heuristic)
   noise_buffer_m: 10            # X6: max Lden over the footprint buffered by this (loudest-facade proxy)
   lb_snap_m: 5                  # B6: listed-building entry points (1-10 m accuracy) count within this of a footprint

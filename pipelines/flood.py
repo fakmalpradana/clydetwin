@@ -6,15 +6,21 @@ the AOI envelope and cached under data/raw/analytics/flood/. Surface water and s
 published SEPA download (file geodatabase, 1.9 GB, read with a bbox filter). A building is exposed to a source at
 the highest likelihood whose extent intersects its footprint: high (about 1 in 10 yr), medium (1 in 200), low
 (1 in 1000), else none.
-Output: part_flood.parquet (flood_river, flood_coastal, flood_surface, flood_max: none|low|medium|high).
+A building is exposed to a likelihood only if at least `analytics.flood_min_share` of its footprint area lies in that extent.
+Output: part_flood.parquet (flood_river, flood_coastal, flood_surface, flood_max: none|low|medium|high; flood_share_max 0-1).
 """
 
 import subprocess
 import time
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import requests
+from exactextract import exact_extract
+from rasterio.features import rasterize
+from rasterio.io import MemoryFile
+from rasterio.transform import from_origin
 
 from . import config
 from .download import fetch
@@ -76,12 +82,49 @@ def fetch_layer(layer: int, bbox, cache) -> gpd.GeoDataFrame:
     return g.set_crs(27700, allow_override=True) if len(g) else g
 
 
-def hit(bld: gpd.GeoDataFrame, ext: gpd.GeoDataFrame) -> pd.Series:
-    ids = set(bld.sjoin(ext[["geometry"]], predicate="intersects").building_id) if len(ext) else ()
-    return bld.building_id.isin(ids)
+def share(bld: gpd.GeoDataFrame, ext: gpd.GeoDataFrame, bbox, res: float = 2.0) -> pd.Series:
+    """Fraction (0-1) of each footprint covered by the extent polygons, aligned to bld.index.
+
+    The extent is rasterized once over the AOI at `res` m (uint8) and exactextract takes the coverage-weighted mean per
+    footprint, so partial pixels count fractionally; at 2 m the error is well below the 10% threshold. Vector
+    intersection against 100k+ vertex polygons took minutes per layer.
+    """
+    if not len(ext):
+        return pd.Series(0.0, index=bld.index)
+    x0, y0, x1, y1 = bbox
+    shape = (int(np.ceil((y1 - y0) / res)), int(np.ceil((x1 - x0) / res)))
+    tf = from_origin(x0, y0 + shape[0] * res, res, res)
+    arr = rasterize(
+        ext.geometry, out_shape=shape, transform=tf, fill=0, default_value=1, dtype="uint8"
+    )
+    prof = dict(
+        driver="GTiff",
+        height=shape[0],
+        width=shape[1],
+        count=1,
+        dtype="uint8",
+        crs=27700,
+        transform=tf,
+    )
+    with MemoryFile() as mf:
+        with mf.open(**prof) as dst:
+            dst.write(arr, 1)
+        with mf.open() as src:
+            r = exact_extract(src, bld[["geometry"]], ["mean"], output="pandas")
+    return pd.Series(r["mean"].fillna(0).clip(0, 1).values, index=bld.index)
 
 
-def surface(bld: gpd.GeoDataFrame, raw, bbox) -> pd.Series:
+def exposure(shares, min_share: float) -> tuple[pd.Series, pd.Series]:
+    """(class, share in the class's extent) from the high, medium, low share series; a class needs >= min_share."""
+    h, m, lo = (s >= min_share for s in shares)
+    cls = classify(h, m, lo)
+    top = pd.Series(0.0, index=shares[0].index)
+    for name, s in zip(("high", "medium", "low"), shares, strict=True):
+        top = top.where(cls != name, s)
+    return cls, top.round(3)
+
+
+def surface(bld: gpd.GeoDataFrame, raw, bbox) -> tuple[pd.Series, ...]:
     """Surface water and small watercourses from the unpacked geodatabase.
 
     ogr2ogr clips each layer to the AOI in under a second; reading the GDB through geopandas with a bbox took hours.
@@ -101,9 +144,8 @@ def surface(bld: gpd.GeoDataFrame, raw, bbox) -> pd.Series:
             subprocess.run(
                 ["ogr2ogr", "-f", "GPKG", str(f), str(gdb), layer, "-spat", *spat], check=True
             )
-        hits.append(hit(bld, gpd.read_file(f)))
-        config.log(f"surface water {k}: {int(hits[-1].sum())} buildings")
-    return classify(*hits).set_axis(bld.index)
+        hits.append(share(bld, gpd.read_file(f), bbox))
+    return tuple(hits)
 
 
 def run(cfg: dict | None = None) -> pd.DataFrame:
@@ -111,12 +153,23 @@ def run(cfg: dict | None = None) -> pd.DataFrame:
     raw = config.resolve(cfg["analytics"]["raw_dir"]) / "flood"
     bld = gpd.read_file(config.analytics_heights(cfg), columns=["building_id"])
     bbox = tuple(bld.total_bounds.round())
+    min_share = cfg["analytics"]["flood_min_share"]
     out = pd.DataFrame({"building_id": bld.building_id})
+    tops = []
     for src, layers in SOURCES.items():
-        h, m, lo = (hit(bld, fetch_layer(i, bbox, raw)) for i in layers)
-        out[f"flood_{src}"] = classify(h, m, lo).values
-    out["flood_surface"] = surface(bld, raw, bbox).values
+        shares = tuple(share(bld, fetch_layer(i, bbox, raw), bbox) for i in layers)
+        out[f"flood_{src}"], top = exposure(shares, min_share)
+        tops.append(top)
+    out["flood_surface"], top = exposure(surface(bld, raw, bbox), min_share)
+    tops.append(top)
     out["flood_max"] = worst(out.flood_river, out.flood_coastal, out.flood_surface).values
+    # share of the footprint in the extent that set flood_max (largest among sources at that class)
+    cls = out[["flood_river", "flood_coastal", "flood_surface"]]
+    out["flood_share_max"] = pd.concat(
+        [t.where(cls[c] == out.flood_max, 0.0) for t, c in zip(tops, cls.columns, strict=True)],
+        axis=1,
+    ).max(axis=1)
+    out.loc[out.flood_max == "none", "flood_share_max"] = 0.0
     out.to_parquet(config.analytics_out(cfg) / "part_flood.parquet", index=False)
     for c in out.columns[1:]:
         config.log(f"{c}: {out[c].value_counts().to_dict()}")
