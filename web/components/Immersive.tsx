@@ -12,6 +12,9 @@ import { sceneTime } from "@/lib/time";
 import { useConditions } from "@/lib/useConditions";
 import Ticker from "./Ticker";
 import { useVehicles } from "@/lib/useVehicles";
+import { parseWxOverride } from "@/lib/weatherfx";
+import { isCamMode, shiftedDate, TIMELAPSE_H, type CamMode } from "@/lib/camera-modes";
+import { needsLightMap, selectQuality, type Quality } from "@/lib/quality";
 import { FIXTURE } from "@/lib/api";
 import { MODE_COLOR, MODE_LABEL, type Mode } from "@/lib/vehicles";
 
@@ -24,6 +27,13 @@ export default function Immersive() {
   const modes = [...new Set(vehicles.map((v) => v.mode))] as Mode[];
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
   const [bm, setBm] = useState<BasemapId>("esri");
+  const [quality, setQuality] = useState<Quality>("medium");
+  const [mode, setMode] = useState<CamMode>("orbit");
+  const [followId, setFollowId] = useState<string | null>(null);
+  const [tourSpeed, setTourSpeed] = useState(1);
+  const [offsetH, setOffsetH] = useState(0);
+  const [hud, setHud] = useState(false);
+  const [wx, setWx] = useState<ReturnType<typeof parseWxOverride>>(null);
   const [illustrative, setIllustrative] = useState(false);
   const latest = useRef<CameraState | null>(null);
   const [cam, setCam] = useState<CameraState | null>(null);
@@ -38,15 +48,25 @@ export default function Immersive() {
       const q = new URLSearchParams(window.location.search);
       const initial = paramsToCamera(q, IMMERSIVE_CAMERA);
       // Weak GPUs and phones get the lighter Explore map (with a way back in).
+      let gpuTier: number | null = null;
       if (q.get("force") !== "1") {
         const { getGPUTier } = await import("detect-gpu");
         const tier = await getGPUTier({ benchmarksURL: "/gpu-benchmarks" }).catch(() => ({ tier: 0, isMobile: true }));
         if (cancelled) return;
-        if (tier.tier < 2 || tier.isMobile) {
+        gpuTier = tier.tier;
+        if (needsLightMap(tier.tier, !!tier.isMobile)) {
           router.replace(`/explore?${cameraQuery(initial)}&gpu=low${carry(window.location.search)}`);
           return;
         }
       }
+      setQuality(selectQuality(q.get("q"), gpuTier));
+      setHud(q.get("hud") === "1");
+      const m = q.get("mode");
+      if (isCamMode(m)) setMode(m);
+      setFollowId(q.get("follow"));
+      setTourSpeed(Math.min(10, Math.max(0.1, Number(q.get("tourspeed")) || 1)));
+      setOffsetH(Math.min(TIMELAPSE_H, Math.max(-TIMELAPSE_H, Number(q.get("dt")) || 0)));
+      setWx(parseWxOverride(q.get("wx")));
       latest.current = initial;
       setBm(parseBasemap(q, "esri"));
       const time = sceneTime(q, true);
@@ -58,14 +78,15 @@ export default function Immersive() {
     };
   }, [router]);
 
+  const date = state ? shiftedDate(state.date, offsetH) : null;
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
-      {state ? (
-        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} />
+      {state && date ? (
+        <Scene initial={state.initial} date={date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} vehicles={vehicles} quality={quality} hud={hud} mode={mode} followId={followId ?? vehicles[0]?.id ?? null} tourSpeed={tourSpeed} weather={wx ?? nowData?.weather ?? null} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-3 px-4 py-3">
+      <header data-chrome className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-3 px-4 py-3">
         <Link href="/" className="pointer-events-auto rounded-md bg-panel/85 px-3 py-2 font-mono text-xs tracking-widest text-accent backdrop-blur">
           CLYDETWIN
         </Link>
@@ -78,7 +99,7 @@ export default function Immersive() {
           &larr; Map view
         </button>
       </header>
-      <aside className="absolute left-4 top-16 z-10 w-52 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+      <aside data-chrome className="absolute left-4 top-16 z-10 w-52 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
         <BasemapPicker
           value={bm}
           onChange={(id) => {
@@ -94,12 +115,47 @@ export default function Immersive() {
           </p>
         )}
       </aside>
+      {hud && <p id="hud" className="absolute right-4 top-24 z-10 rounded bg-bg/70 px-2 py-1 font-mono text-[11px] text-muted backdrop-blur">quality: {quality}</p>}
+      <div data-chrome className="absolute bottom-24 left-4 z-10 w-64 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+        <div className="flex gap-1" role="group" aria-label="Camera mode">
+          {(["orbit", "tour", "follow"] as const).map((m) => (
+            <button
+              key={m}
+              aria-pressed={mode === m}
+              disabled={m === "follow" && vehicles.length === 0}
+              onClick={() => { setMode(m); window.history.replaceState(null, "", setParam(window.location.search, "mode", m)); }}
+              className={`flex-1 rounded px-2 py-1 capitalize disabled:opacity-40 ${mode === m ? "bg-accent text-bg" : "bg-bg/60 hover:text-accent"}`}
+            >
+              {m === "tour" ? "Drone tour" : m}
+            </button>
+          ))}
+        </div>
+        {mode === "follow" && vehicles.length > 0 && (
+          <select
+            aria-label="Vehicle to follow"
+            className="mt-2 w-full rounded bg-bg/60 px-2 py-1"
+            value={followId ?? vehicles[0].id}
+            onChange={(e) => setFollowId(e.target.value)}
+          >
+            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label} ({v.mode})</option>)}
+          </select>
+        )}
+        <label className="mt-3 block text-[10px] uppercase tracking-wider text-muted">
+          Time shift: {offsetH > 0 ? "+" : ""}{offsetH} h
+          <input
+            type="range" min={-TIMELAPSE_H} max={TIMELAPSE_H} step={0.5} value={offsetH}
+            onChange={(e) => setOffsetH(Number(e.target.value))}
+            className="mt-1 block w-full accent-[var(--color-accent,#4ade80)]"
+          />
+        </label>
+        {offsetH !== 0 && <button onClick={() => setOffsetH(0)} className="mt-1 text-[10px] underline">Back to now</button>}
+      </div>
       {illustrative && (
         <p className="absolute right-4 top-14 z-10 rounded bg-bg/60 px-2 py-1 text-[11px] text-muted backdrop-blur">
           Sun: illustrative (it is night in Glasgow)
         </p>
       )}
-      <div className="absolute bottom-7 left-0 right-0 h-8"><Ticker now={nowData} tick={tick} /></div>
+      <div data-chrome className="absolute bottom-7 left-0 right-0 h-8"><Ticker now={nowData} tick={tick} /></div>
       <Attribution id={bm} cam={cam} className="absolute bottom-16 right-2 z-10 max-w-[60%]" />
       <footer className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-bg/60 px-4 py-1.5 text-[11px] text-muted backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. OGL v3.0. LiDAR: Scottish Government and Fugro.{" "}

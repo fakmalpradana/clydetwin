@@ -39,7 +39,7 @@ are written down in [`docs/methods/`](docs/methods/lod1.md) and [`docs/decisions
 | 2 | Live environment (weather, rivers, rain, air quality), flood zones, API | ⏳ |
 | 3 | Moving city: traffic, buses, trains, aircraft, time slider | ⏳ |
 | 4 | LoD2 pilot, per-building analytics, thematic styling, flood scenario | ⏳ |
-| 5 | `/immersive` v1: data-driven cinematic "Glasgow Now" | ⏳ |
+| 5 | `/immersive` v1: data-driven cinematic "Glasgow Now" | 🔨 built on `p5/immersive`, gate (Medium >= 50 fps on a MacBook) pending |
 | 6 to 7 | Full-city LoD2, research analytics, v1.0 | ⏳ |
 
 What works today:
@@ -48,8 +48,23 @@ What works today:
   (`lon, lat, h, hd, p`), real-sun lighting for Glasgow, six switchable basemaps (Esri dark/light gray, Esri imagery,
   OSM, optional Google via the official Map Tiles API).
 - `/immersive`: React Three Fiber, same tileset and terrain, physical sky and sun shadows, imagery draped on terrain,
-  weak-GPU fallback to `/explore`, two-way switch that keeps the camera.
+  weak-GPU fallback to `/explore`, two-way switch that keeps the camera. Phase 5 adds data-driven effects: volumetric
+  clouds from `/now` cloud cover, rain and a wet look from precipitation, a Clyde water surface that follows the nearest
+  gauge, procedural sandstone façades with lit windows at night, quality presets (`?q=low|medium|high`, `?hud=1` for the
+  fps), and camera modes (orbit, drone tour, follow a vehicle, ±12 h time-lapse). Demo clip: see "Demo clip" below. Debug: `?wx=low,mid,high,precip` forces weather.
 - `/about/data`: every attribution, licence and the non-operational disclaimer.
+
+### Demo clip
+
+Record on a real GPU (headless WebGL is too slow and can leave tiles unloaded):
+open `/immersive?q=high&mode=tour&tourspeed=1&t=2026-06-15T17:30:00Z&wx=45,30,40,0`, wait for the tiles, record with macOS
+Screenshot (Cmd+Shift+5) or OBS, then shrink to at most 8 MB:
+
+```
+ffmpeg -i in.mov -vf scale=1280:-2 -c:v libvpx-vp9 -crf 34 -b:v 0 -an docs/media/p5/drone-tour.webm
+```
+
+`web/scripts/capture-tour.py` renders the same tour headlessly frame by frame, but check its frames (see its header).
 
 ## Architecture
 

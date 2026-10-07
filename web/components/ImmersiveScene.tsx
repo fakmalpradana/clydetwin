@@ -1,22 +1,31 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 "use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, ToneMapping } from "@react-three/postprocessing";
+import { EffectComposer, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { AerialPerspective, Atmosphere, Sky, SkyLight, SunLight } from "@takram/three-atmosphere/r3f";
 import { GlobeControls, TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID, type TilesRenderer as TilesRendererImpl } from "3d-tiles-renderer/three";
-import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
+import { CesiumIonAuthPlugin, GLTFExtensionsPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesOverlay } from "3d-tiles-renderer/plugins";
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { BufferAttribute, type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { BufferAttribute, type DirectionalLight, Group, Color, Matrix4, Mesh, Quaternion, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
+import Rain from "./Rain";
+import { followPose, tourPose, type CamMode } from "@/lib/camera-modes";
+import { attachFacade, facadeUniforms, patchFacade } from "./facade";
+import { nightFactor } from "@/lib/facade";
+import { sunElevation } from "@/lib/time";
+import Water from "./Water";
+import { waterLevel } from "@/lib/water";
+import { cloudParams, rainIntensity, wetLook, type WeatherFx } from "@/lib/weatherfx";
+import { QUALITY, type Quality } from "@/lib/quality";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
@@ -38,6 +47,21 @@ const registerOwnTerrain = (t: TilesRendererImpl | null) => {
 
 const material = new MeshStandardMaterial({ color: "#b9bec7", roughness: 0.9, metalness: 0, flatShading: true });
 
+// Wet look: shade and roughness of every standard material in a tile scene, relative to its dry values (kept in userData).
+let currentWet = 0;
+const applyWet = (root: Object3D, wet: number) => {
+  const { shade, roughnessDrop } = wetLook(wet);
+  root.traverse((o) => {
+    const m = (o as Mesh).isMesh ? ((o as Mesh).material as MeshStandardMaterial) : null;
+    if (!m || !m.isMeshStandardMaterial) return;
+    const dry = (m.userData.dry ??= { color: m.color.clone(), roughness: m.roughness }) as { color: Color; roughness: number };
+    m.color.copy(dry.color).multiplyScalar(shade);
+    m.roughness = Math.max(0.2, dry.roughness - roughnessDrop);
+  });
+};
+
+patchFacade(material);
+
 const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
   e.scene.traverse((o) => {
     const mesh = o as Mesh;
@@ -46,7 +70,11 @@ const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
       mesh.castShadow = mesh.receiveShadow = true;
     }
   });
-const onBuildings = neutralize(material);
+const onBuildings = (e: { scene: Object3D }) => {
+  neutralize(material)(e);
+  attachFacade(e.scene);
+  applyWet(e.scene, currentWet);
+};
 
 type Metadata = { getPropertyTableData: (table: number, row: number) => { building_id?: string } };
 /** LoD1 handler: grey material, and drop the triangles of buildings that the LoD2 pilot replaces. */
@@ -60,14 +88,18 @@ const onLod1 = (pilot: Set<string>) => (e: { scene: Object3D }) => {
     if (!g || !fid || !sm || !g.index) return;
     const hidden = new Set<number>();
     for (const id of new Set(Array.from(fid.array as ArrayLike<number>))) {
-      if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
+      try {
+        if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
+      } catch {
+        // feature id outside the property table: keep the triangles
+      }
     }
     if (hidden.size) g.setIndex(new BufferAttribute(filterIndex(g.index.array, fid.array as ArrayLike<number>, hidden), 1));
   });
 };
 // Terrain keeps the material the quantized-mesh loader created: ImageOverlayPlugin wraps it to drape the basemap,
 // and swapping in a shared material would drop that.
-const onTerrain = (e: { scene: Object3D }) =>
+const onTerrain = (e: { scene: Object3D }) => {
   e.scene.traverse((o) => {
     const mesh = o as Mesh;
     if (mesh.isMesh) {
@@ -77,6 +109,8 @@ const onTerrain = (e: { scene: Object3D }) =>
       m.metalness = 0;
     }
   });
+  applyWet(e.scene, currentWet);
+};
 
 /** Place the camera from the shared state once, and publish its state (4 Hz) for the Explore switch + URL. */
 function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: MutableRefObject<CameraState> }) {
@@ -101,6 +135,22 @@ function CameraSync({ initial, latestRef }: { initial: CameraState; latestRef: M
     t.current = 0;
     latestRef.current = cameraToState(camera);
     window.history.replaceState(null, "", withCamera(window.location.search, latestRef.current));
+  });
+  return null;
+}
+
+/** Drives the camera in the tour and follow modes (orbit leaves it to GlobeControls). `speed` scales tour time (demo capture). */
+function CameraRig({ mode, followId, vehicles, speed }: { mode: CamMode; followId: string | null; vehicles: Vehicle[]; speed: number }) {
+  const latest = useRef(vehicles);
+  useEffect(() => { latest.current = vehicles; }, [vehicles]);
+  useFrame(({ camera, clock }) => {
+    // window.__tourT (set by scripts/capture-tour.py) pins the tour time for frame-by-frame capture
+    const pinned = (window as unknown as { __tourT?: number }).__tourT;
+    if (mode === "tour") stateToCamera(tourPose(pinned ?? clock.elapsedTime * speed), camera);
+    else if (mode === "follow") {
+      const v = latest.current.find((x) => x.id === followId);
+      if (v) stateToCamera(followPose(project(v, Date.now()), v.heading_deg), camera);
+    }
   });
   return null;
 }
@@ -168,8 +218,55 @@ function Fps() {
     const a = acc.current;
     const now = performance.now();
     a.frames++;
+    (window as unknown as { __frame: number }).__frame = ((window as unknown as { __frame?: number }).__frame ?? 0) + 1;
     if (now - a.last >= 1000) {
       (window as unknown as { __fps: number }).__fps = Math.round((a.frames * 1000) / (now - a.last));
+      a.frames = 0;
+      a.last = now;
+    }
+  });
+  return null;
+}
+
+/** Volumetric clouds (takram), loaded on demand so the low preset never downloads them. Layer cover follows /now. */
+function SceneClouds({ weather, quality }: { weather: WeatherFx | null; quality: "medium" | "high" }) {
+  const [mod, setMod] = useState<typeof import("@takram/three-clouds/r3f") | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import("@takram/three-clouds/r3f").then((m) => alive && setMod(m));
+    return () => { alive = false; };
+  }, []);
+  const p = useMemo(() => cloudParams(weather ?? { cloud_low: 30, cloud_mid: 20, cloud_high: 30 }), [weather]);
+  if (!mod) return <></>;
+  const { Clouds, CloudLayer } = mod;
+  return (
+    <Clouds
+      disableDefaultLayers
+      qualityPreset={quality}
+      coverage={p.coverage}
+      localWeatherTexture="/clouds/local_weather.png"
+      shapeTexture="/clouds/shape.bin"
+      shapeDetailTexture="/clouds/shape_detail.bin"
+      turbulenceTexture="/clouds/turbulence.png"
+    >
+      {p.layers.map((l, i) => (
+        <CloudLayer key={i} index={i} {...l} shadow />
+      ))}
+    </Clouds>
+  );
+}
+
+/** Dev HUD (?hud=1): preset and fps, written to the page's #hud element. */
+function Hud({ quality }: { quality: Quality }) {
+  const acc = useRef({ frames: 0, last: 0 });
+  useFrame(() => {
+    const a = acc.current;
+    const now = performance.now();
+    a.frames++;
+    if (!a.last) a.last = now;
+    if (now - a.last >= 500) {
+      const el = document.getElementById("hud");
+      if (el) el.textContent = `quality: ${quality} | ${Math.round((a.frames * 1000) / (now - a.last))} fps`;
       a.frames = 0;
       a.last = now;
     }
@@ -193,6 +290,21 @@ function GroundPlane() {
     <mesh matrixAutoUpdate={false} matrix={m} receiveShadow>
       <circleGeometry args={[4000, 64]} />
       <meshStandardMaterial color="#2b313b" roughness={1} />
+    </mesh>
+  );
+}
+
+/**
+ * Far-field ground: a spherical cap (80 km) just below sea level, under our terrain. The terrain data ends at the AOI
+ * edge (~13 km out), and without this its stepped far edge showed as a dashed line against the sky.
+ */
+function FarGround({ anchor }: { anchor: Vector3 }) {
+  const q = useMemo(() => new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), anchor.clone().normalize()), [anchor]);
+  const r = anchor.length() - FLAT_GROUND_M + 45;
+  return (
+    <mesh quaternion={q}>
+      <sphereGeometry args={[r, 64, 48, 0, Math.PI * 2, 0, 80000 / r]} />
+      <meshStandardMaterial color="#3a4048" roughness={1} />
     </mesh>
   );
 }
@@ -289,7 +401,19 @@ export default function ImmersiveScene({
   stations,
   tick,
   vehicles,
+  quality,
+  hud,
+  weather,
+  mode,
+  followId,
+  tourSpeed,
 }: {
+  mode: CamMode;
+  followId: string | null;
+  tourSpeed: number;
+  weather: WeatherFx | null;
+  quality: Quality;
+  hud: boolean;
   vehicles: Vehicle[];
   stations: StationFeature[];
   tick: number;
@@ -314,19 +438,34 @@ export default function ImmersiveScene({
       ),
     [],
   );
+  const qs = QUALITY[quality];
+  const cloudsOn = qs.clouds !== false;
   const hasIon = ION_TOKEN.length > 0;
   // LoD1 waits for the pilot id list so its tiles are never drawn without the hole.
   const [pilot, setPilot] = useState<Set<string> | null | "failed">(null);
   useEffect(() => {
     loadPilotIds().then(setPilot, (e) => { console.warn("LoD2 pilot unavailable", e); setPilot("failed"); });
   }, []);
+  const water = useMemo(() => waterLevel(stations), [stations]);
+  useEffect(() => {
+    facadeUniforms.uUp.value.copy(anchor).normalize();
+  }, [anchor]);
+  const night = nightFactor(sunElevation(date));
+  useEffect(() => {
+    facadeUniforms.uNight.value = night;
+  }, [night]);
+  const rain = rainIntensity(weather?.precip_mm ?? 0);
+  useEffect(() => {
+    currentWet = rain;
+    if (world) applyWet(world, rain);
+  }, [world, rain]);
   const lod1Handler = useMemo(() => (pilot && pilot !== "failed" ? onLod1(pilot) : onBuildings), [pilot]);
   return (
     <Canvas
       shadows="percentage"
       gl={{ antialias: false, depth: false, stencil: false, powerPreference: "high-performance" }}
       camera={{ fov: 55, near: 1, far: 1e7 }}
-      dpr={[1, 1.5]}
+      dpr={qs.dpr}
     >
       <Atmosphere date={date}>
         <Sky />
@@ -335,7 +474,7 @@ export default function ImmersiveScene({
           <SunLight
             castShadow
             distance={10000}
-            shadow-mapSize={[4096, 4096]}
+            shadow-mapSize={[qs.shadowMap, qs.shadowMap]}
             shadow-camera-near={1}
             shadow-camera-far={20000}
             shadow-bias={-0.0004}
@@ -347,12 +486,16 @@ export default function ImmersiveScene({
             <TilesRenderer key={pilot === "failed" ? "lod1" : "lod1-hole"} url={TILESET_URL} onLoadModel={lod1Handler}>
               {/* the sample/prod tileset is 3D Tiles 1.1 implicit; the plugin is not on by default */}
               <TilesPlugin plugin={ImplicitTilingPlugin} />
-              {world && <GlobeControls scene={world} enableDamping />}
+              {/* decodes EXT_structural_metadata into userData.structuralMetadata (pilot hole, façades) */}
+              <TilesPlugin plugin={GLTFExtensionsPlugin} />
+              {world && <GlobeControls scene={world} enableDamping enabled={mode === "orbit"} />}
             </TilesRenderer>
           )}
           {pilot && pilot !== "failed" && (
             <TilesRenderer url={LOD2_URL} onLoadModel={onBuildings}>
               <TilesPlugin plugin={ImplicitTilingPlugin} />
+              {/* decodes EXT_structural_metadata into userData.structuralMetadata (pilot hole, façades) */}
+              <TilesPlugin plugin={GLTFExtensionsPlugin} />
             </TilesRenderer>
           )}
           {TERRAIN_URL ? (
@@ -367,13 +510,22 @@ export default function ImmersiveScene({
             <GroundPlane />
           )}
         </group>
+        {TERRAIN_URL && <FarGround anchor={anchor} />}
+        {/* moonlit fill so the city is not pure black at night */}
+        <ambientLight intensity={night * 0.35} color="#4a5f9a" />
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
+        <Water h={water.h} />
+        <Rain intensity={rain} wind={weather?.wind_ms ?? 0} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
+        <CameraRig mode={mode} followId={followId} vehicles={vehicles} speed={tourSpeed} />
         <CameraSync initial={initial} latestRef={latestRef} />
         <Fps />
-        <EffectComposer multisampling={0}>
+        {hud && <Hud quality={quality} />}
+        <EffectComposer multisampling={0} enableNormalPass={cloudsOn}>
+          {cloudsOn && <SceneClouds weather={weather} quality={qs.clouds as "medium" | "high"} />}
           <AerialPerspective />
+          {qs.smaa ? <SMAA /> : <></>}
           <ToneMapping mode={ToneMappingMode.AGX} />
         </EffectComposer>
       </Atmosphere>

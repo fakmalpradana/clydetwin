@@ -6,7 +6,11 @@ versioning: [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `/immersive` v1 (Phase 5): quality presets `low|medium|high` (detect-gpu tier, `?q=`, `?hud=1`), volumetric clouds (`@takram/three-clouds` 0.7.6, MIT) from `/now` cloud cover, GPU rain and wet look from precipitation, Clyde water surface following the nearest gauge (OS OpenMap Local polygons, OGL), procedural sandstone façades with window bands and lit windows at night, drone tour / follow / ±12 h time-lapse camera modes, a headless capture script (`web/scripts/capture-tour.py`, with limits) and documented manual demo capture.
 - Live backend (Phase 2): TimescaleDB + PostGIS schema (`ref`, `ts`, `meta`), FastAPI (`/api/v1/health|stations|timeseries|now`), collectors for Open-Meteo UKMO, UK-AIR Glasgow air quality (PM2.5, NO2) and SEPA KiWIS (off until access is granted), R2 backfill and daily dump, `docker-compose.live.yml`, `make live-up`, `make soak-report`, deploy kit (`deploy/README.md`), ADR-006 and ADR-007.
+
+### Fixed
+- `/immersive`: the dashed horizon line was the stepped far edge of our own terrain tileset against the sky; a ground cap under the terrain removes it. Tile metadata is now decoded (`GLTFExtensionsPlugin`), so the LoD2 pilot hole in LoD1 works.
 
 ### Changed
 - Tiles and terrain are published under versioned R2 prefixes (`lod1/v1/`, `terrain/v1/`) so immutable caching is safe on re-uploads (`make publish`, `TILE_VERSION`).

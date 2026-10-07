@@ -24,6 +24,7 @@ Air quality: Contains public sector information licensed under the Open Governme
 ## Licensing rules for public tiles
 
 - Public footprints come only from OS OpenMap Local; heights only from Scottish LiDAR (OGL).
+- The `/immersive` Clyde water surface (`web/public/data/clyde_water.geojson`, 10 KB) is derived from OS OpenMap Local TidalWater and SurfaceWater_Area polygons (OGL v3.0, simplified to 3 m); the OS attribution line above applies.
 - OS NGD and Digimap (EDINA) data are used for internal validation only, never published.
 - Exact LiDAR phase credits are finalised in `docs/data-verification.md`.
 
