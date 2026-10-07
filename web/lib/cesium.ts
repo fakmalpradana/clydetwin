@@ -4,6 +4,7 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { CameraState } from "./camera";
 import { DEFAULT_BASEMAP, getBasemap, resolveTemplate, type BasemapId } from "./basemap";
+import { hideExpression, LOD2_URL } from "./lod2";
 import { styleConditions, type ThemeId } from "./themes";
 import {
   FLAT_GROUND_M,
@@ -119,8 +120,11 @@ export async function createViewer(
 }
 
 /** Style for a theme (height = viridis by height). Sentinel values are neutral grey, see lib/themes.ts. */
-export function buildingStyle(theme: ThemeId = "height") {
-  return new Cesium.Cesium3DTileStyle({ color: { conditions: styleConditions(theme) } });
+export function buildingStyle(theme: ThemeId = "height", hideIds?: Iterable<string>) {
+  return new Cesium.Cesium3DTileStyle({
+    color: { conditions: styleConditions(theme) },
+    ...(hideIds ? { show: hideExpression(hideIds) } : {}),
+  });
 }
 
 export async function loadBuildings(viewer: Cesium.Viewer) {
@@ -128,6 +132,14 @@ export async function loadBuildings(viewer: Cesium.Viewer) {
     maximumScreenSpaceError: 8,
   });
   tileset.style = buildingStyle();
+  viewer.scene.primitives.add(tileset);
+  return tileset;
+}
+
+/** LoD2 pilot tileset (height theme only: it carries no analytics attributes). */
+export async function loadLod2(viewer: Cesium.Viewer) {
+  const tileset = await Cesium.Cesium3DTileset.fromUrl(LOD2_URL, { maximumScreenSpaceError: 8 });
+  tileset.style = buildingStyle("height");
   viewer.scene.primitives.add(tileset);
   return tileset;
 }

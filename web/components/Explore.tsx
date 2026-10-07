@@ -16,6 +16,7 @@ import Attribution from "./Attribution";
 import BasemapPicker from "./BasemapPicker";
 import { BUILDING_FIELDS, type BuildingProps } from "@/lib/tileset";
 import { analyticsRows, parseTheme, type ThemeId } from "@/lib/themes";
+import { loadPilotIds } from "@/lib/lod2";
 import ThemeLegend from "./ThemeLegend";
 import type * as CesiumNS from "cesium";
 
@@ -35,6 +36,7 @@ export default function Explore() {
     lib: CesiumLib;
     viewer: CesiumNS.Viewer;
     tileset: CesiumNS.Cesium3DTileset;
+    lod2?: CesiumNS.Cesium3DTileset;
     ionTerrain?: CesiumNS.TerrainProvider;
     flood?: CesiumNS.ImageryLayer;
   } | null>(null);
@@ -55,6 +57,9 @@ export default function Explore() {
   const [lowGpu, setLowGpu] = useState(false);
   const [bm, setBm] = useState<BasemapId>("dark");
   const [theme, setTheme] = useState<ThemeId>("height");
+  const [lod2, setLod2] = useState(true);
+  const [pilotIds, setPilotIds] = useState<Set<string> | null>(null);
+  const [lod2Err, setLod2Err] = useState(false);
   const mobility = useMobility(useCallback(() => api.current, []), ready);
 
   useEffect(() => {
@@ -66,6 +71,7 @@ export default function Explore() {
       setLowGpu(q.get("gpu") === "low");
       setBm(parseBasemap(q));
       setTheme(parseTheme(q));
+      setLod2(q.get("lod2") !== "0");
       const { viewer, terrain: terrainKind, realTerrain } = await lib.createViewer(container.current, { interactive: true, date: sceneDate(q), basemap: parseBasemap(q) });
       if (disposed) return viewer.destroy();
       setIon(terrainKind !== "flat");
@@ -110,6 +116,14 @@ export default function Explore() {
         } else if (!gid) setSelected(null);
       }, C.ScreenSpaceEventType.LEFT_CLICK);
       setReady(true);
+      Promise.all([lib.loadLod2(viewer), loadPilotIds()]).then(
+        ([t, ids]) => {
+          if (disposed) return;
+          if (api.current) api.current.lod2 = t;
+          setPilotIds(ids);
+        },
+        (e) => { console.warn("LoD2 pilot unavailable", e); setLod2Err(true); },
+      );
     })().catch((e) => setError(String(e)));
     return () => {
       disposed = true;
@@ -156,9 +170,14 @@ export default function Explore() {
     a.lib.floodLayer().then((l) => { a.viewer.imageryLayers.add(l); a.flood = l; }, (e) => { console.warn("flood layer failed", e); setFloodErr(true); setFlood(false); });
   }, [flood, ready]);
 
+  // LoD2 replaces LoD1 inside the pilot, but only in the height theme: its tiles carry no analytics attributes.
+  const showLod2 = lod2 && theme === "height" && !!pilotIds;
   useEffect(() => {
-    if (api.current) api.current.tileset.style = api.current.lib.buildingStyle(theme);
-  }, [theme, ready]);
+    const a = api.current;
+    if (!a) return;
+    a.tileset.style = a.lib.buildingStyle(theme, showLod2 ? pilotIds! : undefined);
+    if (a.lod2) a.lod2.show = showLod2 && buildings;
+  }, [theme, ready, showLod2, pilotIds, buildings]);
 
   useEffect(() => {
     if (api.current) api.current.tileset.show = buildings;
@@ -202,6 +221,10 @@ export default function Explore() {
         <label className="flex items-center gap-2 py-1">
           <input type="checkbox" checked={buildings} onChange={(e) => setBuildings(e.target.checked)} /> Buildings (LoD1)
         </label>
+        <label className="flex items-center gap-2 py-1" title="George Square and Merchant City, roofer LoD2.2">
+          <input type="checkbox" checked={lod2} disabled={!pilotIds} onChange={(e) => { setLod2(e.target.checked); window.history.replaceState(null, "", setParam(window.location.search, "lod2", e.target.checked ? "1" : "0")); }} /> LoD2 pilot{lod2Err ? " (unavailable)" : ""}
+        </label>
+        {lod2 && pilotIds && theme !== "height" && <p className="text-[10px] text-muted">LoD2 is shown in the Height theme only; it has no analytics attributes.</p>}
         <label className="flex items-center gap-2 py-1" title={ion ? "" : "Needs terrain (own or ion); flat ground is used instead"}>
           <input type="checkbox" checked={terrain && ion} disabled={!ion} onChange={(e) => setTerrain(e.target.checked)} /> Terrain{ion ? "" : " (unavailable)"}
         </label>
@@ -243,6 +266,7 @@ export default function Explore() {
             <button onClick={() => setSelected(null)} className="text-muted hover:text-fg" aria-label="Close panel">&times;</button>
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            <div className="contents"><dt className="text-muted">Model</dt><dd className="text-right font-mono text-xs leading-5">{(selected as { lod?: number }).lod === 2 ? "LoD2 (pilot)" : "LoD1"}</dd></div>
             {BUILDING_FIELDS.filter((f) => f.key !== "h_p90" || selected.h_p90 !== undefined).map((f) => (
               <div key={f.key} className="contents">
                 <dt className="text-muted">{f.label}</dt>
