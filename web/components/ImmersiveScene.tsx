@@ -144,7 +144,9 @@ function CameraRig({ mode, followId, vehicles, speed }: { mode: CamMode; followI
   const latest = useRef(vehicles);
   useEffect(() => { latest.current = vehicles; }, [vehicles]);
   useFrame(({ camera, clock }) => {
-    if (mode === "tour") stateToCamera(tourPose(clock.elapsedTime * speed), camera);
+    // window.__tourT (set by scripts/capture-tour.py) pins the tour time for frame-by-frame capture
+    const pinned = (window as unknown as { __tourT?: number }).__tourT;
+    if (mode === "tour") stateToCamera(tourPose(pinned ?? clock.elapsedTime * speed), camera);
     else if (mode === "follow") {
       const v = latest.current.find((x) => x.id === followId);
       if (v) stateToCamera(followPose(project(v, Date.now()), v.heading_deg), camera);
@@ -216,6 +218,7 @@ function Fps() {
     const a = acc.current;
     const now = performance.now();
     a.frames++;
+    (window as unknown as { __frame: number }).__frame = ((window as unknown as { __frame?: number }).__frame ?? 0) + 1;
     if (now - a.last >= 1000) {
       (window as unknown as { __fps: number }).__fps = Math.round((a.frames * 1000) / (now - a.last));
       a.frames = 0;

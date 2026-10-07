@@ -86,7 +86,7 @@ export default function Immersive() {
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-3 px-4 py-3">
+      <header data-chrome className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-3 px-4 py-3">
         <Link href="/" className="pointer-events-auto rounded-md bg-panel/85 px-3 py-2 font-mono text-xs tracking-widest text-accent backdrop-blur">
           CLYDETWIN
         </Link>
@@ -99,7 +99,7 @@ export default function Immersive() {
           &larr; Map view
         </button>
       </header>
-      <aside className="absolute left-4 top-16 z-10 w-52 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+      <aside data-chrome className="absolute left-4 top-16 z-10 w-52 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
         <BasemapPicker
           value={bm}
           onChange={(id) => {
@@ -116,7 +116,7 @@ export default function Immersive() {
         )}
       </aside>
       {hud && <p id="hud" className="absolute right-4 top-24 z-10 rounded bg-bg/70 px-2 py-1 font-mono text-[11px] text-muted backdrop-blur">quality: {quality}</p>}
-      <div className="absolute bottom-24 left-4 z-10 w-64 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
+      <div data-chrome className="absolute bottom-24 left-4 z-10 w-64 rounded-lg border border-line bg-panel/90 p-3 text-xs backdrop-blur">
         <div className="flex gap-1" role="group" aria-label="Camera mode">
           {(["orbit", "tour", "follow"] as const).map((m) => (
             <button
@@ -155,7 +155,7 @@ export default function Immersive() {
           Sun: illustrative (it is night in Glasgow)
         </p>
       )}
-      <div className="absolute bottom-7 left-0 right-0 h-8"><Ticker now={nowData} tick={tick} /></div>
+      <div data-chrome className="absolute bottom-7 left-0 right-0 h-8"><Ticker now={nowData} tick={tick} /></div>
       <Attribution id={bm} cam={cam} className="absolute bottom-16 right-2 z-10 max-w-[60%]" />
       <footer className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-bg/60 px-4 py-1.5 text-[11px] text-muted backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. OGL v3.0. LiDAR: Scottish Government and Fugro.{" "}
