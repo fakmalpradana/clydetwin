@@ -14,7 +14,7 @@ import Ticker from "./Ticker";
 import { useVehicles } from "@/lib/useVehicles";
 import { parseWxOverride } from "@/lib/weatherfx";
 import { isCamMode, shiftedDate, TIMELAPSE_H, type CamMode } from "@/lib/camera-modes";
-import { selectQuality, type Quality } from "@/lib/quality";
+import { needsLightMap, selectQuality, type Quality } from "@/lib/quality";
 import { FIXTURE } from "@/lib/api";
 import { MODE_COLOR, MODE_LABEL, type Mode } from "@/lib/vehicles";
 
@@ -54,7 +54,7 @@ export default function Immersive() {
         const tier = await getGPUTier({ benchmarksURL: "/gpu-benchmarks" }).catch(() => ({ tier: 0, isMobile: true }));
         if (cancelled) return;
         gpuTier = tier.tier;
-        if (tier.tier < 2 || tier.isMobile) {
+        if (needsLightMap(tier.tier, !!tier.isMobile)) {
           router.replace(`/explore?${cameraQuery(initial)}&gpu=low${carry(window.location.search)}`);
           return;
         }

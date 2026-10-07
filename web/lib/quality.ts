@@ -23,3 +23,6 @@ export function selectQuality(q: string | null | undefined, tier: number | null)
   if (tier == null) return "medium";
   return tier >= 3 ? "high" : tier >= 2 ? "medium" : "low";
 }
+
+/** Weak GPUs (tier below 2) and phones get the lighter /explore map instead of /immersive. */
+export const needsLightMap = (tier: number, isMobile: boolean) => tier < 2 || isMobile;

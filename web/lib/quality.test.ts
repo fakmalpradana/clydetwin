@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { QUALITY, selectQuality } from "./quality";
+import { needsLightMap, QUALITY, selectQuality } from "./quality";
 
 describe("selectQuality", () => {
   it("maps detect-gpu tiers", () => {
@@ -20,5 +20,14 @@ describe("selectQuality", () => {
     expect(QUALITY.low.shadowMap).toBeLessThan(QUALITY.medium.shadowMap);
     expect(QUALITY.medium.shadowMap).toBeLessThan(QUALITY.high.shadowMap);
     expect(QUALITY.low.dpr[1]).toBeLessThan(QUALITY.high.dpr[1]);
+  });
+});
+
+describe("needsLightMap", () => {
+  it("redirects weak GPUs and phones, not capable desktops", () => {
+    expect(needsLightMap(0, false)).toBe(true);
+    expect(needsLightMap(1, false)).toBe(true);
+    expect(needsLightMap(3, true)).toBe(true);
+    expect(needsLightMap(2, false)).toBe(false);
   });
 });
