@@ -123,17 +123,22 @@ SEPA Flood Maps v3.0 (OGL v3). River and coastal extents come from the open Floo
 queried once per layer for the AOI envelope, 6 requests in all, cached under `data/raw/analytics/flood/`); surface water
 and small watercourses use SEPA's published file geodatabase (the MapServer would have needed about 320 paged queries
 for 320k polygons), clipped to the AOI with `ogr2ogr`. A building gets, per source, the highest likelihood whose extent
-intersects its footprint: `high` (about 1 in 10 years), `medium` (1 in 200), `low` (1 in 1000), else `none`.
+covers at least 10% of its footprint (`analytics.flood_min_share`): `high` (about 1 in 10 years), `medium` (1 in 200), `low` (1 in 1000), else `none`.
 
 | Field | Type | Domain |
 |---|---|---|
 | `flood_river`, `flood_coastal`, `flood_surface` | string | `none`, `low`, `medium`, `high` |
 | `flood_max` | string | the worst of the three |
+| `flood_share_max` | float | 0-1, share of the footprint inside the extent that set `flood_max` (0 when none) |
 
-Result (86,286 buildings): `flood_max` none 68,551, low 5,316, medium 8,572, high 3,847; river high 978, coastal high
-178, surface high 2,899. Limits: any intersection counts, however small (no depth or area threshold, so edge touching
-flags a building); the maps show present-day, undefended-by-design extents and not climate scenarios; depth is not
-included (the depth layers are tens of GB). SEPA states that the maps are strategic and not for individual property
+Share method: each extent is rasterized once over the AOI at 2 m and `exactextract` takes the coverage-weighted mean per
+footprint (partial pixels count fractionally; at 2 m the error is far below the 10% threshold, and vector intersection
+against 100k-vertex polygons took minutes per layer). Result (86,286 buildings): with the earlier any-touch rule `flood_max`
+was none 68,551, low 5,316, medium 8,572, high 3,847 (river high 978, coastal high 178, surface high 2,899); with the 10%
+rule it is none 79,932, low 2,587, medium 2,569, high 1,198 (river high 713, coastal high 143, surface high 398). The
+any-touch rule over-flagged large buildings and edge contact. Limits: no depth is included (the depth layers are tens of GB);
+the maps show present-day extents and not climate scenarios; buildings below the 10% share, however exposed in part, read as
+`none` there (`flood_share_max` is 0 for them). SEPA states that the maps are strategic and not for individual property
 assessment.
 
 ## B8. Output contract
