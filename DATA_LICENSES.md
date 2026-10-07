@@ -45,3 +45,13 @@ Esri Dark Gray / Light Gray canvases: Esri, HERE, Garmin, (c) OpenStreetMap cont
 Esri World Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community. OpenStreetMap: (c) OpenStreetMap
 contributors (ODbL). Google Maps (optional, with a key): official Map Tiles API only, with Google's logo and copyright.
 Attribution is shown on the map for each basemap.
+
+## Phase 4 analytics inputs (per-building attributes)
+
+All verified on 2026-10-07 from the publisher's own page; raw downloads are cached under `data/raw/analytics/`
+(gitignored). Access is anonymous HTTP for every row, no account or key.
+
+| Dataset | Publisher | Licence | Access | Used for |
+|---|---|---|---|---|
+| OS Open UPRN (2026-09) | Ordnance Survey | OS OpenData licence (OGL v3 compatible), "Contains OS data (c) Crown copyright and database right 2026" | OS Downloads API, CSV 619 MB | B1 crosswalk |
+| OS Open Linked Identifiers, BLPU-UPRN-TopographicArea-TOID (2026-09) | Ordnance Survey | same OS OpenData licence | OS Downloads API, CSV 841 MB | B1 crosswalk (UPRN to TOID) |

@@ -32,3 +32,11 @@ os:
 heights:
   default_height_m: 6.0         # used when a footprint has no valid LiDAR pixels or nDSM height < min_height_m
   min_height_m: 2.0
+
+analytics:
+  # LoD1 heights (built by `make lod1 MODE=aoi`) are the building universe; override with CLYDETWIN_HEIGHTS
+  heights: ../clydetwin/build/aoi/heights.gpkg
+  raw_dir: data/raw/analytics
+  out_dir: build/analytics
+  uprn_match_max_m: 2           # UPRN to footprint: inside, or nearest within this distance
+  storey_height_m: 3.0          # X1 storeys = height / this (documented heuristic)
