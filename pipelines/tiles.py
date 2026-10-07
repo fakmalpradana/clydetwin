@@ -90,8 +90,11 @@ def load_db(mode: str) -> int:
     return n_out
 
 
-def pg2b3dm(mode: str) -> None:
-    out = config.build_dir(mode) / "tiles" / "lod1"
+def pg2b3dm(
+    mode: str, table: str = "lod1", attrs: str = ATTRS, tuning: list[str] = PG2B3DM_TUNING,
+    image: str = "geodan/pg2b3dm",
+) -> None:  # fmt: skip
+    out = config.build_dir(mode) / "tiles" / table
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -107,18 +110,18 @@ def pg2b3dm(mode: str) -> None:
         "linux/amd64",
         "-v",
         f"{out}:/out",
-        "geodan/pg2b3dm",
+        image,
         "--connection",
         conn,
         "-t",
-        "lod1",
+        table,
         "-c",
         "geom",
         "-a",
-        ATTRS,
+        attrs,
         "-o",
         "/out",
-        *PG2B3DM_TUNING,
+        *tuning,
         "--default_color",
         "#C8C8C8",
         "--copyright",
@@ -126,9 +129,9 @@ def pg2b3dm(mode: str) -> None:
     )
 
 
-def validate(mode: str) -> None:
+def validate(mode: str, table: str = "lod1") -> None:
     """3d-tiles-validator in a Node 22 container (its native deps do not build on newer local Node)."""
-    out = config.build_dir(mode) / "tiles" / "lod1"
+    out = config.build_dir(mode) / "tiles" / table
     r = subprocess.run(
         [
             "docker",

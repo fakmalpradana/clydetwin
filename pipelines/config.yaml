@@ -16,7 +16,13 @@ sample:
   # One 1 km tile around George Square / Merchant City (EPSG:27700: minx, miny, maxx, maxy)
   bbox: [259000, 665000, 260000, 666000]
 
+pilot:
+  # Phase 4 LoD2 pilot: 2 x 2 km around George Square and Merchant City (EPSG:27700: minx, miny, maxx, maxy)
+  bbox: [258500, 664500, 260500, 666500]
+  buffer_m: 25                  # LAZ tiles / points are cut this far beyond the footprints
+
 lidar:
+  collection_laz: scotland-gov/lidar/phase-5/laz   # 1 km tiles, 4 pts/m2, same flight as the DSM/DTM
   # Phase 5 (Fugro for SPEN, flown 2020-05-28 .. 2021-04-12) covers 100% of the AOI; see docs/data-verification.md
   catalogue_api: https://api.remotesensing.data.gov.scot
   collection_dsm: scotland-gov/lidar/phase-5/dsm
