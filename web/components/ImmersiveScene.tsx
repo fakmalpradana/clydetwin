@@ -18,6 +18,8 @@ import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
 import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
 import Rain from "./Rain";
+import Water from "./Water";
+import { waterLevel } from "@/lib/water";
 import { cloudParams, rainIntensity, wetLook, type WeatherFx } from "@/lib/weatherfx";
 import { QUALITY, type Quality } from "@/lib/quality";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
@@ -410,6 +412,7 @@ export default function ImmersiveScene({
   useEffect(() => {
     loadPilotIds().then(setPilot, (e) => { console.warn("LoD2 pilot unavailable", e); setPilot("failed"); });
   }, []);
+  const water = useMemo(() => waterLevel(stations), [stations]);
   const rain = rainIntensity(weather?.precip_mm ?? 0);
   useEffect(() => {
     currentWet = rain;
@@ -465,6 +468,7 @@ export default function ImmersiveScene({
         {TERRAIN_URL && <FarGround anchor={anchor} />}
         <Gauges stations={stations} tick={tick} />
         <Vehicles vehicles={vehicles} />
+        <Water h={water.h} />
         <Rain intensity={rain} wind={weather?.wind_ms ?? 0} />
         <BasemapOverlay tiles={terrainTiles} id={basemap} />
         <CameraSync initial={initial} latestRef={latestRef} />
