@@ -116,3 +116,22 @@ in one half is misattributed; (2) averaging ranks of very different zones yields
 (3) 130 of the 1,003 zones (13%) have `simd_dominant_share` below 0.8, i.e. they were split or merged by the 2022
 review, so treat their SIMD value as approximate (the web should flag them); (4) the new zones reflect the 2022
 Census while SIMD indicators are 2011-2019 vintage. A SIMD release on the 2022 zones would replace this lookup.
+
+## B3. X3 flood exposure
+
+SEPA Flood Maps v3.0 (OGL v3). River and coastal extents come from the open Flood_Maps MapServer (3 likelihood layers each,
+queried once per layer for the AOI envelope, 6 requests in all, cached under `data/raw/analytics/flood/`); surface water
+and small watercourses use SEPA's published file geodatabase (the MapServer would have needed about 320 paged queries
+for 320k polygons), clipped to the AOI with `ogr2ogr`. A building gets, per source, the highest likelihood whose extent
+intersects its footprint: `high` (about 1 in 10 years), `medium` (1 in 200), `low` (1 in 1000), else `none`.
+
+| Field | Type | Domain |
+|---|---|---|
+| `flood_river`, `flood_coastal`, `flood_surface` | string | `none`, `low`, `medium`, `high` |
+| `flood_max` | string | the worst of the three |
+
+Result (86,286 buildings): `flood_max` none 68,551, low 5,316, medium 8,572, high 3,847; river high 978, coastal high
+178, surface high 2,899. Limits: any intersection counts, however small (no depth or area threshold, so edge touching
+flags a building); the maps show present-day, undefended-by-design extents and not climate scenarios; depth is not
+included (the depth layers are tens of GB). SEPA states that the maps are strategic and not for individual property
+assessment.
