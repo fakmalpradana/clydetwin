@@ -19,3 +19,11 @@ footprint and the rest within 2 m; 100% of matched UPRNs have a TOID. 75,482 of 
 one UPRN and a TOID. Limits: the relation is many-to-many. A footprint that merges several terraced houses
 carries several TOIDs (50,534 buildings have `n_toid` > 1), and the TOID is a MasterMap Topography area, not a
 footprint-for-footprint match. Buildings without a UPRN (outbuildings, sheds) get null `toid`.
+
+## B2. X1 volume and storeys
+
+`volume_m3 = area_m2 * height` (footprint area times the LoD1 height `h_p70`, so it is a LoD1 prism volume: it ignores
+roof shape and underestimates podium-and-tower buildings, see `lod1.md`). `storeys_est = max(1, round(height / 3.0))`:
+a heuristic with a fixed 3.0 m floor-to-floor height (`analytics.storey_height_m`); it overestimates tall-storey
+commercial buildings and underestimates low-ceiling flats. Buildings with `height_source = "default"` (3%) have the 6 m
+default height, so their storeys (2) and volume are placeholders.
