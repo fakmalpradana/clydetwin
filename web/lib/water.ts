@@ -3,6 +3,7 @@
 import { ShapeUtils, Vector2 } from "three";
 import { effectiveStatus, type StationFeature } from "./api";
 import { GEORGE_SQUARE } from "./tileset";
+import { bankDistance } from "./waterfx";
 
 export const WATER_URL = "/data/clyde_water.geojson";
 
@@ -40,12 +41,15 @@ export interface WaterMesh {
   /** lon, lat pairs */
   xy: number[];
   index: number[];
+  /** per vertex: distance (m) to the nearest polygon edge, the proxy for water depth (see waterfx.ts depthFromBank) */
+  bank: number[];
 }
 
 /** Triangulate polygons (lon/lat) and split triangles until every edge is <= maxEdgeM, so a flat mesh follows the Earth's curve. */
-export function buildWater(polys: { coordinates: Ring[] }[], maxEdgeM = 250): WaterMesh {
+export function buildWater(polys: { coordinates: Ring[] }[], maxEdgeM = 40): WaterMesh {
   const xy: number[] = [];
   const index: number[] = [];
+  const bank: number[] = [];
   const len = (a: number, b: number) => Math.hypot((xy[2 * a] - xy[2 * b]) * 62500, (xy[2 * a + 1] - xy[2 * b + 1]) * 111200);
   const mid = (a: number, b: number) => {
     xy.push((xy[2 * a] + xy[2 * b]) / 2, (xy[2 * a + 1] + xy[2 * b + 1]) / 2);
@@ -68,6 +72,8 @@ export function buildWater(polys: { coordinates: Ring[] }[], maxEdgeM = 250): Wa
     for (const v of flat) xy.push(v.x, v.y);
     const tris = ShapeUtils.triangulateShape(rings[0], rings.slice(1));
     for (const [a, b, c] of tris) split(base + a, base + b, base + c);
+    const n = xy.length / 2;
+    for (let i = base; i < n; i++) bank[i] = bankDistance(xy[2 * i], xy[2 * i + 1], poly.coordinates);
   }
-  return { xy, index };
+  return { xy, index, bank };
 }

@@ -9,9 +9,52 @@ const smooth = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-/** Murky tidal Clyde: grey-brown shallows and dark green-brown depths (linear sRGB). */
-export const WATER_DEEP: [number, number, number] = [0.018, 0.026, 0.02];
-export const WATER_SHALLOW: [number, number, number] = [0.06, 0.055, 0.035];
+/** Saturated teal-navy channel and light turquoise shallows (linear sRGB), so the river reads as water against the aerial imagery. */
+export const WATER_DEEP: [number, number, number] = [0.004, 0.036, 0.062];
+export const WATER_SHALLOW: [number, number, number] = [0.05, 0.3, 0.3];
+/** Opacity at the bank and in the channel. */
+export const ALPHA_SHALLOW = 0.3;
+export const ALPHA_DEEP = 0.94;
+/** Distance from the bank (m) over which depth ramps up: depth = 1 - exp(-d / DEPTH_SCALE_M). */
+export const DEPTH_SCALE_M = 28;
+/** Half-width (m) of the bright shoreline foam band. */
+export const FOAM_WIDTH_M = 1.6;
+
+const M_LON = 62500, M_LAT = 111200;
+
+/**
+ * Distance (m) from lon/lat to the nearest polygon ring edge. Depth proxy: the tidal Clyde is dredged to a roughly
+ * trapezoidal section, so depth rises with distance from the bank. Equirectangular metres (error well under 1% at this scale).
+ */
+export function bankDistance(lon: number, lat: number, rings: [number, number][][]): number {
+  let best = Infinity;
+  for (const r of rings)
+    for (let i = 0; i + 1 < r.length; i++) {
+      const dx = (r[i + 1][0] - r[i][0]) * M_LON, dy = (r[i + 1][1] - r[i][1]) * M_LAT;
+      const px = (lon - r[i][0]) * M_LON, py = (lat - r[i][1]) * M_LAT;
+      const l2 = dx * dx + dy * dy;
+      const t = l2 > 0 ? clamp((px * dx + py * dy) / l2, 0, 1) : 0;
+      best = Math.min(best, Math.hypot(px - t * dx, py - t * dy));
+    }
+  return best;
+}
+
+/** Normalised depth 0 (bank) .. 1 (mid-channel) from the distance to the bank in metres. */
+export function depthFromBank(distM: number): number {
+  return 1 - Math.exp(-clamp(distM, 0, 1e4) / DEPTH_SCALE_M);
+}
+
+/** Body colour and opacity for a depth 0..1 (mirrors the shader): shallow = light, translucent; deep = dark, near opaque. */
+export function depthLook(depth: number): { color: [number, number, number]; alpha: number } {
+  const t = smooth(0, 1, clamp(depth, 0, 1));
+  return { color: mix3(WATER_SHALLOW, WATER_DEEP, t), alpha: ALPHA_SHALLOW + (ALPHA_DEEP - ALPHA_SHALLOW) * t };
+}
+
+/** Shoreline foam strength 0..1 at distM from the bank; `phase` (0..1, from flow time) breathes the band subtly. */
+export function shoreFoam(distM: number, phase = 0): number {
+  const w = FOAM_WIDTH_M * (1 + 0.25 * Math.sin(phase * 2 * Math.PI));
+  return 1 - smooth(w * 0.4, w, clamp(distM, 0, 1e4));
+}
 
 /** Ripple look from wind (m/s) and precipitation (mm/h): scroll speed, normal strength, and a fine rain-ripple amount 0-1. */
 export function rippleParams(wind_ms: number, precip_mm: number) {
@@ -41,8 +84,6 @@ export const CENTRELINE: [number, number][] = [
   [-4.29, 55.8595], [-4.3, 55.8615], [-4.31, 55.8649], [-4.32, 55.8672], [-4.33, 55.8676], [-4.34, 55.8698],
   [-4.35, 55.8715], [-4.36, 55.8774], [-4.37, 55.8819], [-4.38, 55.8853], [-4.39, 55.8887], [-4.4, 55.8903],
 ];
-const M_LON = 62500, M_LAT = 111200;
-
 /** Unit flow direction [east, north] at a point: along the nearest centreline segment, downstream (westward). */
 export function flowAt(lon: number, lat: number): [number, number] {
   let best = Infinity, dir: [number, number] = [-1, 0];
