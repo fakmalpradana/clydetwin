@@ -5,7 +5,7 @@
 import { BufferAttribute, BufferGeometry, Camera, DirectionalLight, type Matrix4, Mesh, type Object3D, RepeatWrapping, ShaderMaterial, TextureLoader, Vector2, Vector3, type Texture } from "three";
 import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
-import { flowAt, WATER_DEEP, WATER_SHALLOW } from "@/lib/waterfx";
+import { ALPHA_DEEP, ALPHA_SHALLOW, DEPTH_SCALE_M, flowAt, FOAM_WIDTH_M, WATER_DEEP, WATER_SHALLOW } from "@/lib/waterfx";
 import type { WaterMesh } from "@/lib/water";
 
 const RAD = Math.PI / 180;
@@ -13,6 +13,8 @@ const RAD = Math.PI / 180;
 const vertexShader = /* glsl */ `
   uniform mat4 textureMatrix;
   attribute vec2 aFlow;
+  attribute float aBank;
+  varying float vBank;
   varying vec2 vLocal;
   varying vec2 vFlow;
   varying vec3 vView;
@@ -21,6 +23,7 @@ const vertexShader = /* glsl */ `
   void main() {
     vLocal = position.xy;
     vFlow = aFlow;
+    vBank = aBank;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vView = -mv.xyz;
     vUp = normalMatrix * vec3(0.0, 0.0, 1.0);
@@ -33,6 +36,8 @@ const fragmentShader = /* glsl */ `
   uniform float time; uniform float speed; uniform float strength; uniform float fine;
   uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uSunView;
   uniform vec3 color;
+  uniform float uScale; uniform float uFoamW; uniform float uAShallow; uniform float uADeep;
+  varying float vBank;
   varying vec2 vLocal; varying vec2 vFlow; varying vec3 vView; varying vec3 vUp; varying vec4 vProj;
   // two-phase flow sampling: each layer is advected by the flow and re-seeded every cycle, cross-faded to hide the reset
   vec3 flowSample(sampler2D t, vec2 uv, vec2 flow, float tt) {
@@ -59,8 +64,11 @@ const fragmentShader = /* glsl */ `
     float ndv = max(dot(n, v), 0.0);
     float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
     fresnel = clamp(fresnel * 1.0 + 0.04, 0.0, 1.0);
+    // depth proxy from the distance to the bank (see lib/waterfx.ts): light translucent shallows, dark near-opaque channel
+    float depth = 1.0 - exp(-vBank / uScale);
+    float dt = smoothstep(0.0, 1.0, depth);
     float murk = 0.5 + 0.5 * (n1.x * 0.5 + n2.y * 0.5);
-    vec3 body = mix(uShallow, uDeep, clamp(murk, 0.0, 1.0)) + uSky * 0.03;
+    vec3 body = mix(uShallow, uDeep, clamp(dt + (murk - 0.5) * 0.12, 0.0, 1.0)) + uSky * 0.03;
     // no reflection pass: sky gradient along the reflected ray (bright at the horizon, deeper overhead), so ripples show
     vec3 rv = reflect(-v, n);
     float upness = clamp(dot(rv, up), 0.0, 1.0);
@@ -71,7 +79,15 @@ const fragmentShader = /* glsl */ `
     #endif
     float spec = pow(max(dot(reflect(-uSunView, n), v), 0.0), 220.0);
     vec3 col = mix(body, refl, fresnel) + uSun * spec;
-    gl_FragColor = vec4(col, 1.0);
+    // shoreline: thin bright band at the polygon edge, breathing with the flow time and broken up by the fine normals
+    float fw = uFoamW * (1.0 + 0.25 * sin(tt * 6.2832 * 4.0 + vLocal.x * 0.05)) * (0.8 + 0.4 * (n3.x * 0.5 + 0.5));
+    float foam = 1.0 - smoothstep(fw * 0.4, fw, vBank);
+    col = mix(col, vec3(0.85, 0.95, 0.95) * (0.35 + 0.65 * (uSky.b + 0.4)), foam * 0.85);
+    float alpha = mix(uAShallow, uADeep, dt);
+    // the surface is more reflective (and so opaque) at grazing angles
+    alpha = clamp(alpha + fresnel * 0.4, 0.0, 1.0);
+    alpha = max(alpha, foam * 0.9);
+    gl_FragColor = vec4(col, alpha);
   }`;
 
 export interface WaterObject {
@@ -102,11 +118,13 @@ export function makeWater(mesh: WaterMesh, frame: Matrix4, h: number, quality: "
   const g = new BufferGeometry();
   g.setAttribute("position", new BufferAttribute(pos, 3));
   g.setAttribute("aFlow", new BufferAttribute(flow, 2));
+  g.setAttribute("aBank", new BufferAttribute(Float32Array.from(mesh.bank), 1));
   g.setIndex(mesh.index);
   const uniforms = {
     color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null },
     tN1: { value: normalMap("/water/Water_1_M_Normal.jpg") }, tN2: { value: normalMap("/water/Water_2_M_Normal.jpg") },
     time: { value: 0 }, speed: { value: 1 }, strength: { value: 0.5 }, fine: { value: 0 },
+    uScale: { value: DEPTH_SCALE_M }, uFoamW: { value: FOAM_WIDTH_M }, uAShallow: { value: ALPHA_SHALLOW }, uADeep: { value: ALPHA_DEEP },
     uDeep: { value: new Vector3(...WATER_DEEP) }, uShallow: { value: new Vector3(...WATER_SHALLOW) },
     uSky: { value: new Vector3(0.2, 0.3, 0.45) }, uSun: { value: new Vector3() }, uSunView: { value: new Vector3(0, 0, 1) },
   };
@@ -123,6 +141,8 @@ export function makeWater(mesh: WaterMesh, frame: Matrix4, h: number, quality: "
     out = new Mesh(g, new ShaderMaterial({ uniforms: { ...uniforms, textureMatrix: { value: frame.clone().identity() } }, vertexShader, fragmentShader }));
   }
   const m = out.material as ShaderMaterial;
+  m.transparent = true;
+  m.depthWrite = false;
   m.polygonOffset = true;
   m.polygonOffsetFactor = -2;
   m.polygonOffsetUnits = -2;
