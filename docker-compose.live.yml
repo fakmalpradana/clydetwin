@@ -19,6 +19,8 @@ services:
       POSTGRES_USER: clydetwin
       POSTGRES_PASSWORD: ${LIVE_DB_PASSWORD:?set LIVE_DB_PASSWORD in .env}
       POSTGRES_DB: clydetwin
+      # timescaledb-tune sizes Postgres from this, not host RAM (the VM is shared with other stacks)
+      TS_TUNE_MEMORY: ${TS_TUNE_MEMORY:-1GB}
     ports:
       - "127.0.0.1:${LIVE_DB_PORT:-5434}:5432"
     volumes:
