@@ -50,8 +50,7 @@ edge against the sky. The fix is a very large ground cap just under sea level, s
 recorded the cause in the commit, because "added a plane" without a reason is not a fix anyone can trust later.
 
 **Tile metadata was never decoded.** `/immersive` never registered the plugin that reads glTF extensions, so the LoD2
-pilot's "hide the LoD1 buildings underneath" logic had silently done nothing. Nothing crashed. I only noticed because
-the pilot buildings looked doubled. Registering the plugin fixed it.
+pilot's "hide the LoD1 buildings underneath" logic had silently done nothing. Nothing crashed, which is why it went unnoticed. Registering the plugin fixed it.
 
 **Wrong buildings hidden.** Even after that, some LoD1 buildings vanished that should not have. The feature id is
 stored in an interleaved glTF buffer, and my code read the raw buffer, so it treated position and normal floats as
