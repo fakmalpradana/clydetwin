@@ -4,7 +4,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/code-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![CI](https://github.com/fakmalpradana/clydetwin/actions/workflows/ci.yml/badge.svg)](https://github.com/fakmalpradana/clydetwin/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v0.1.0%20pending-lightgrey.svg)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v0.1.1-lightgrey.svg)](CHANGELOG.md)
 [![Live demo](https://img.shields.io/badge/demo-clydetwin.vercel.app-5ee0c0.svg)](https://clydetwin.vercel.app)
 [![Data: CC BY-SA 4.0](https://img.shields.io/badge/data-CC%20BY--SA%204.0-lightgrey.svg)](DATA_LICENSES.md)
 
@@ -18,7 +18,21 @@ Orbit around the city centre:
 
 ![Orbit over Glasgow](docs/media/orbit.webp)
 
-**Live demo: <https://clydetwin.vercel.app>** (production goes live after the Phase 1 gate; until then use the preview deployment). Screenshots use an evening sun (`t=2026-06-21T19:00:00Z`) for illustration.
+**Live demo: <https://clydetwin.vercel.app>**. Screenshots use an evening sun (`t=2026-06-21T19:00:00Z`) for illustration.
+
+## Live demo
+
+| What | Where |
+|---|---|
+| Web app (Vercel) | <https://clydetwin.vercel.app> |
+| 3D explorer | [`/explore`](https://clydetwin.vercel.app/explore) |
+| Cinematic view | [`/immersive`](https://clydetwin.vercel.app/immersive) (`?q=low\|medium\|high`, `?hud=1` for fps) |
+| Live conditions | [`/live`](https://clydetwin.vercel.app/live) |
+| Flood exposure scenario | [`/scenarios/flood`](https://clydetwin.vercel.app/scenarios/flood) (not a forecast) |
+| API (Hetzner VM) | <https://clydetwin.178-105-182-162.sslip.io> (`/api/v1/health`) |
+
+The API runs on one small VM, so it can be slow or briefly down; the web app then falls back to sample data and says so.
+Aircraft are live (adsb.lol), the Subway is a timetable simulation, and river data is unavailable until SEPA grants access.
 
 ## What is ClydeTwin
 
@@ -35,12 +49,15 @@ are written down in [`docs/methods/`](docs/methods/lod1.md) and [`docs/decisions
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | LoD1 buildings for all of Glasgow City (81,131), own LiDAR terrain, `/explore`, `/immersive` v0.1, basemap switcher, data/attribution page | ✅ built, release `v0.1.0` pending the gate |
-| 2 | Live environment (weather, rivers, rain, air quality), flood zones, API | ⏳ |
-| 3 | Moving city: traffic, buses, trains, aircraft, time slider | ⏳ |
-| 4 | LoD2 pilot, per-building analytics, thematic styling, flood scenario | ⏳ |
-| 5 | `/immersive` v1: data-driven cinematic "Glasgow Now" | 🔨 built on `p5/immersive`, gate (Medium >= 50 fps on a MacBook) pending |
+| 1 | LoD1 buildings for all of Glasgow City, own LiDAR terrain, `/explore`, `/immersive` v0.1 | ✅ released as `v0.1.0` / `v0.1.1` |
+| 2 | Live environment (weather, rivers, rainfall, air quality), flood zones, API | ✅ gate passed; the 72 h ingest soak is still running on the VM (since 2026-10-15), result pending |
+| 3 | Moving city: live aircraft, simulated Subway, 24 h time slider | ✅ built and checked against the live API; buses, trains and traffic wait for accounts |
+| 4 | LoD2 pilot, per-building analytics, thematic styling, flood scenario | ✅ val3dity gate met; roof RMSE target redefined (per-building median 1.45 m), NGD validation pending |
+| 5 | `/immersive` v1: data-driven cinematic "Glasgow Now" | ✅ built; the Medium >= 50 fps gate on a MacBook is not measured yet |
 | 6 to 7 | Full-city LoD2, research analytics, v1.0 | ⏳ |
+
+Release tags `v0.2.0` to `v0.5.0` are prepared in [`CHANGELOG.md`](CHANGELOG.md) but not cut yet. Per-phase gate
+results are in [`docs/release/`](docs/release/).
 
 What works today:
 
@@ -52,6 +69,12 @@ What works today:
   clouds from `/now` cloud cover, rain and a wet look from precipitation, a Clyde water surface that follows the nearest
   gauge, procedural sandstone façades with lit windows at night, quality presets (`?q=low|medium|high`, `?hud=1` for the
   fps), and camera modes (orbit, drone tour, follow a vehicle, ±12 h time-lapse). Demo clip: see "Demo clip" below. Debug: `?wx=low,mid,high,precip` forces weather.
+- `/live`, the `/explore` ticker and river gauges: weather, air quality, rainfall, flood zones (Phase 2). River gauges show
+  "unavailable" until SEPA access is granted.
+- Mobility (Phase 3): live aircraft around Glasgow Airport, a simulated Subway, click to follow, 24 h replay slider.
+  Every vehicle is badged live, scheduled or simulated.
+- Analytics (Phase 4): themes for EPC rating, flood, noise and heritage, Data Zone choropleth (SIMD, density), `/scenarios/flood`,
+  a LoD2 pilot of 661 buildings in the city centre, and `/about/methods`.
 - `/about/data`: every attribution, licence and the non-operational disclaimer.
 
 ### Demo clip
@@ -72,33 +95,48 @@ ffmpeg -i in.mov -vf scale=1280:-2 -c:v libvpx-vp9 -crf 34 -b:v 0 -an docs/media
 flowchart LR
   subgraph Sources
     OS[OS OpenMap Local<br/>footprints]
-    LI[Scottish LiDAR Phase 5<br/>DSM + DTM, 50 cm]
+    LI[Scottish LiDAR Phase 5<br/>DSM, DTM, LAZ]
     GEO[OS OSTN15 / OSGM15<br/>datum grids]
+    ENV[Open-Meteo, UK-AIR,<br/>SEPA, adsb.lol, OSM]
+    AN[SEPA, Noise Scotland, EPC,<br/>HES, SIMD, OS Open UPRN]
   end
   subgraph Pipeline[pipelines/ + make]
     R[rasters: nDSM, COGs]
     H[heights: exactextract]
     D[datum: ODN to ellipsoid]
+    L2[LoD2: PDAL, roofer, val3dity]
     PG[(PostGIS)]
     T3[pg2b3dm<br/>3D Tiles 1.1]
     TQ[quantized-mesh<br/>terrain]
   end
-  S3[(Cloudflare R2<br/>tiles + terrain)]
+  R2[(Cloudflare R2<br/>tiles, terrain, raw archive)]
+  subgraph VM[Hetzner VM, Docker Compose + Caddy]
+    COL[collectors]
+    TS[(TimescaleDB<br/>+ PostGIS)]
+    API[FastAPI<br/>REST + SSE]
+  end
   OS --> H
-  LI --> R --> H --> D --> PG --> T3 --> S3
+  LI --> R --> H --> D --> PG --> T3 --> R2
+  LI --> L2 --> PG
+  AN --> PG
   GEO --> D
-  R --> TQ --> S3
-  S3 --> LIB
+  R --> TQ --> R2
+  ENV --> COL --> TS --> API
+  COL -. daily dump .-> R2
   subgraph Web[Next.js on Vercel]
-    LIB[web/lib<br/>contract + camera]
+    LIB[web/lib<br/>contract, camera, API client]
     EX["/explore<br/>CesiumJS"]
     IM["/immersive<br/>R3F + 3d-tiles-renderer"]
+    LV["/live, /scenarios"]
   end
+  R2 --> LIB
+  API --> LIB
   LIB --> EX
   LIB --> IM
+  LIB --> LV
 ```
 
-Two renderers over one shared contract: [ADR-004](docs/decisions/ADR-004-two-renderers.md). Own terrain instead of ion
+The web app stays usable without the API (fixture mode with labelled sample data). Two renderers over one shared contract: [ADR-004](docs/decisions/ADR-004-two-renderers.md). Own terrain instead of ion
 World Terrain (which is about 14 m too high here): [ADR-002](docs/decisions/ADR-002-terrain.md).
 
 ## Data sources
@@ -109,6 +147,18 @@ World Terrain (which is about 14 m too high here): [ADR-002](docs/decisions/ADR-
 | Scottish LiDAR Phase 5 (DSM, DTM) | Scottish Government and Fugro | OGL v3.0 | static (flown 2020-21) | heights, ground, terrain |
 | OS Boundary-Line | Ordnance Survey | OGL v3.0 | OS release cycle | city boundary (AOI) |
 | OSTN15 / OSGM15 grids | Ordnance Survey (via PROJ) | OS OpenData terms | static | ODN to ellipsoidal heights |
+| UK-AIR (Defra) SOS API | Defra | OGL v3.0 (wording to be confirmed, ADR-007) | hourly | `/live` air quality (PM2.5, NO2) |
+| Open-Meteo (UK Met Office model) | Open-Meteo | CC BY 4.0 | hourly | weather, cloud cover, rain |
+| SEPA KiWIS river level and rainfall | SEPA | OGL v3.0 | 15 min | river gauges (access pending) |
+| SEPA flood maps (river, coastal, surface water) | SEPA | OGL v3.0 | per release | flood zones, building flood likelihood |
+| adsb.lol | adsb.lol | ODbL 1.0 (kept separate) | 60 s | live aircraft |
+| OSM `railway=subway`, NaPTAN | OSM contributors, DfT | ODbL 1.0, OGL v3.0 | static | simulated Subway |
+| Scottish LiDAR Phase 5 (LAZ) | Scottish Government and Fugro | OGL v3.0 | static | LoD2 pilot |
+| OS Open UPRN, OS Open Linked Identifiers | Ordnance Survey | OGL v3.0 | OS release cycle | `building_id` to UPRN to TOID crosswalk |
+| Noise Mapping Scotland, Round 4 | Scottish Government | OGL v3.0 | static (2021) | noise exposure |
+| Scottish EPC register (domestic) | Scottish Government | OGL v3.0 | quarterly | EPC aggregate, no addresses |
+| HES listed buildings and conservation areas | Historic Environment Scotland | OGL v3.0 | per release | heritage flags |
+| Data Zones 2022, SIMD 2020v2, NRS population | Scottish Government, NRS | OGL v3.0 | static | choropleth |
 | Esri gray canvases and World Imagery | Esri and partners | Esri terms, attribution shown | continuous | basemaps |
 | OpenStreetMap tiles | OpenStreetMap contributors | ODbL 1.0 (kept separate from OGL layers) | continuous | basemap |
 | Google Map Tiles (optional) | Google | Google Map Tiles API terms | continuous | basemap, only with a key |
@@ -147,7 +197,9 @@ web/         Next.js app: /, /explore, /immersive, /about/data; web/lib is the s
 db/          SQL for the build-time PostGIS (extrusion)
 docs/        ROADMAP, PROGRESS, phase briefs, methods, ADRs, media
 tests/       pytest (datum test vectors, footprints, heights)
-collectors/  reserved for the Phase 2 data collectors
+api/          FastAPI service (REST + SSE)
+collectors/  weather, air quality, SEPA, aircraft, Subway loader, R2 archive and backfill
+deploy/      VM deploy kit (Caddy, compose, README)
 ```
 
 | Target | What it does |
@@ -161,11 +213,13 @@ collectors/  reserved for the Phase 2 data collectors
 | `make serve-terrain [MODE=...]` | serve terrain with the gzip header it needs |
 | `make publish [MODE=...]` | upload tiles and terrain to Cloudflare R2 under `lod1/v1/` and `terrain/v1/` (`TILE_VERSION`; needs `R2_*` in `.env`) |
 
+Live stack: `make live-up` (TimescaleDB + API + collectors), `make migrate`, `make backfill`, `make soak-report`, `make analytics`, `make tiles-attrs`; see [`deploy/README.md`](deploy/README.md).
+
 Web: `cd web && npm run dev | build | lint | test`.
 
 ## Method and validation
 
-Full city, 2026-10-01 ([`docs/methods/lod1.md`](docs/methods/lod1.md)):
+Full city LoD1 v1 (81,131 buildings; the airport extension in `lod1/v2` brings it to 86,286), 2026-10-01 ([`docs/methods/lod1.md`](docs/methods/lod1.md)):
 
 - 81,131 footprints selected, 81,131 in the tileset (100%); 0 dropped for missing ground.
 - 2.99% of buildings have no usable LiDAR height and get a 6 m default (flagged `height_source = default`).
