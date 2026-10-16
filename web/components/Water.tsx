@@ -8,7 +8,7 @@ import { buildWater, WATER_URL, type WaterMesh } from "@/lib/water";
 import { GEORGE_SQUARE } from "@/lib/tileset";
 import type { Quality } from "@/lib/quality";
 import { sunElevation } from "@/lib/time";
-import { rippleParams, skyTint, sunGlint } from "@/lib/waterfx";
+import { depthFromBank, depthLook, rippleParams, skyTint, sunGlint } from "@/lib/waterfx";
 import type { WeatherFx } from "@/lib/weatherfx";
 import { makeWater, updateWater } from "./waterMesh";
 
@@ -83,19 +83,22 @@ function SimpleWater({ mesh, h }: { mesh: WaterMesh; h: number }) {
   const geometry = useMemo(() => {
     if (!mesh) return null;
     const n = mesh.xy.length / 2;
-    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 4);
     const p = new Vector3();
     for (let i = 0; i < n; i++) {
       const lon = mesh.xy[2 * i], lat = mesh.xy[2 * i + 1];
       WGS84_ELLIPSOID.getCartographicToPosition(lat * RAD, lon * RAD, h, p);
       nor.set(p.clone().normalize().toArray(), i * 3);
       pos.set(p.sub(anchor).toArray(), i * 3);
+      const dl = depthLook(depthFromBank(mesh.bank[i]));
+      col.set([...dl.color, dl.alpha], i * 4);
       uv.set([((lon - GEORGE_SQUARE.lon) * 62500) / 130, ((lat - GEORGE_SQUARE.lat) * 111200) / 130], i * 2);
     }
     const g = new BufferGeometry();
     g.setAttribute("position", new BufferAttribute(pos, 3));
     g.setAttribute("normal", new BufferAttribute(nor, 3));
     g.setAttribute("uv", new BufferAttribute(uv, 2));
+    g.setAttribute("color", new BufferAttribute(col, 4));
     g.setIndex(mesh.index);
     return g;
   }, [mesh, h, anchor]);
@@ -103,7 +106,7 @@ function SimpleWater({ mesh, h }: { mesh: WaterMesh; h: number }) {
     const normalMap = rippleNormals();
     normalMap.repeat.set(1, 1);
     return new MeshStandardMaterial({
-      color: "#16323f", roughness: 0.08, metalness: 0.3, normalMap, transparent: true, opacity: 0.9,
+      color: "#ffffff", vertexColors: true, roughness: 0.08, metalness: 0.3, normalMap, transparent: true, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     });
   }, []);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { flowAt, rippleParams, skyTint, sunGlint } from "./waterfx";
+import { bankDistance, depthFromBank, depthLook, flowAt, rippleParams, shoreFoam, skyTint, sunGlint } from "./waterfx";
 
 describe("rippleParams", () => {
   it("wind speeds up and strengthens ripples, bounded", () => {
@@ -44,5 +44,30 @@ describe("flowAt", () => {
   });
   it("follows the river's bend north-west at the lower reach", () => {
     expect(flowAt(-4.375, 55.884)[1]).toBeGreaterThan(0.3);
+  });
+});
+
+describe("depth proxy", () => {
+  const ring: [number, number][] = [[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001], [0, 0]];
+  it("bankDistance is metres to the nearest edge", () => {
+    expect(bankDistance(0.0005, 0, [ring])).toBeCloseTo(0, 5);
+    expect(bankDistance(0.0005, 0.0005, [ring])).toBeCloseTo(0.0005 * 62500, 1); // 31.25 m to the N/S edges' nearer E/W pair
+  });
+  it("depth rises monotonically from 0 and saturates", () => {
+    expect(depthFromBank(0)).toBe(0);
+    expect(depthFromBank(10)).toBeLessThan(depthFromBank(40));
+    expect(depthFromBank(1e6)).toBeGreaterThan(0.99);
+    expect(depthFromBank(NaN)).toBe(0);
+  });
+  it("shallow is lighter and more transparent than deep", () => {
+    const s = depthLook(0), d = depthLook(1);
+    expect(s.alpha).toBeLessThan(d.alpha);
+    expect(s.color[1]).toBeGreaterThan(d.color[1]);
+    expect(depthLook(5).alpha).toBe(d.alpha);
+  });
+  it("foam hugs the bank and fades out", () => {
+    expect(shoreFoam(0)).toBe(1);
+    expect(shoreFoam(0.5)).toBeGreaterThan(shoreFoam(1.2));
+    expect(shoreFoam(10)).toBe(0);
   });
 });
