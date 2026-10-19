@@ -24,6 +24,7 @@ Air quality: Contains public sector information licensed under the Open Governme
 ## Licensing rules for public tiles
 
 - Public footprints come only from OS OpenMap Local; heights only from Scottish LiDAR (OGL).
+- The `/immersive` Clyde water surface (`web/public/data/clyde_water.geojson`, 10 KB) is derived from OS OpenMap Local TidalWater and SurfaceWater_Area polygons (OGL v3.0, simplified to 3 m); the OS attribution line above applies.
 - OS NGD and Digimap (EDINA) data are used for internal validation only, never published.
 - Exact LiDAR phase credits are finalised in `docs/data-verification.md`.
 
@@ -62,3 +63,9 @@ All verified on 2026-10-07 from the publisher's own page; raw downloads are cach
 | SIMD 2020v2 (ranks by 2011 Data Zone) | Scottish Government via opendata.nhs.scot | OGL v3 (`uk-ogl` on the CKAN record) | CSV download, 525 KB | B7 |
 | Small area population estimates mid-2011 to mid-2024, 2022 Data Zones | National Records of Scotland | OGL v3 (Crown copyright, stated on the NRS publication page) | NRS publication zip (100 MB, xlsx per year) | B7 population |
 | SEPA Flood Maps v3.0: river and coastal extents (high/medium/low likelihood) and surface water and small watercourses extents | SEPA | OGL v3, "(c) SEPA 2025" (MapServer copyright text, SEPA data page) | River and coastal: `map.sepa.org.uk/server/rest/services/Open/Flood_Maps/MapServer` layers 0-2 and 6-8, 6 queries of one AOI envelope (cached). Surface water: SEPA download `SEPA_Surface_Water_Flood_Maps_EXTENT_v3_0.zip` (1.94 GB, one request) | B3 flood |
+
+## Third-party assets
+
+- `web/public/water/Water_1_M_Normal.jpg`, `Water_2_M_Normal.jpg`: water normal maps from the three.js examples (`examples/textures/water`, release r186),
+  Copyright 2010-2026 three.js authors, MIT licence. Copied into the repo; nothing is fetched from GitHub at run time.
+- `web/public/clouds/*` (build-time copy, gitignored): textures of `@takram/three-clouds`, MIT.

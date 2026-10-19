@@ -44,3 +44,4 @@ next-env.d.ts
 # copied from node_modules/cesium by scripts/copy-cesium.mjs
 /public/cesium/
 /public/gpu-benchmarks/
+/public/clouds/

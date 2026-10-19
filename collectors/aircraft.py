@@ -7,9 +7,12 @@ Heights are made ellipsoidal here: geometric altitude when sent, else barometric
 
 import math
 import os
+import socket
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
+import urllib3.util.connection as u3c
 from pydantic import BaseModel
 
 from collectors.common import connect, get_json
@@ -101,8 +104,24 @@ def parse_adsb(payload: dict, qnh_hpa: float | None = None) -> list[Position]:
     return out
 
 
+@contextmanager
+def _ipv6(on: bool):
+    """adsb.lol answers 429 to the VM's IPv4 but 200 over IPv6 (env ADSB_IPV6=1). glibc prefers IPv4 from a
+    Docker ULA address, so force the family for this one call (the collector loop is single-threaded)."""
+    if not on:
+        yield
+        return
+    prev = u3c.allowed_gai_family
+    u3c.allowed_gai_family = lambda: socket.AF_INET6
+    try:
+        yield
+    finally:
+        u3c.allowed_gai_family = prev
+
+
 def fetch_adsblol() -> list[Position]:
-    payload = get_json(POINT_URL.format(lat=EGPF[0], lon=EGPF[1], r=RADIUS_NM), tries=1)
+    with _ipv6(os.environ.get("ADSB_IPV6") == "1"):
+        payload = get_json(POINT_URL.format(lat=EGPF[0], lon=EGPF[1], r=RADIUS_NM), tries=1)
     need_qnh = any(
         a.get("alt_geom") is None and a.get("alt_baro") not in (None, "ground")
         for a in payload["ac"]

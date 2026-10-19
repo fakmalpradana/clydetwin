@@ -3,12 +3,14 @@
 \if :{?hours} \else \set hours 72 \endif
 
 \echo == Per source: runs and gaps between successful runs (window :hours h)
-with iv(source, interval_s) as (values ('open-meteo', 1800), ('uk-air', 1800), ('sepa', 900)),
+with iv(source, interval_s) as (values ('open-meteo', 1800), ('uk-air', 1800), ('sepa', 900), ('adsb', 60)),
 w as (select * from meta.ingest_runs where started_at > now() - make_interval(hours => :hours)),
+-- window start and now() are sentinels, so an outage still running (or one before the first success) counts as a gap
 ok as (
-  select source, finished_at,
-         finished_at - lag(finished_at) over (partition by source order by finished_at) as gap
-  from w where status = 'ok'
+  select source, t as finished_at, t - lag(t) over (partition by source order by t) as gap
+  from (select source, finished_at as t from w where status = 'ok'
+        union all select source, now() - make_interval(hours => :hours) from iv
+        union all select source, now() from iv) s
 )
 select iv.source,
        count(w.*) as runs,
