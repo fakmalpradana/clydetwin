@@ -16,7 +16,13 @@ sample:
   # One 1 km tile around George Square / Merchant City (EPSG:27700: minx, miny, maxx, maxy)
   bbox: [259000, 665000, 260000, 666000]
 
+pilot:
+  # Phase 4 LoD2 pilot: 2 x 2 km around George Square and Merchant City (EPSG:27700: minx, miny, maxx, maxy)
+  bbox: [258500, 664500, 260500, 666500]
+  buffer_m: 25                  # LAZ tiles / points are cut this far beyond the footprints
+
 lidar:
+  collection_laz: scotland-gov/lidar/phase-5/laz   # 1 km tiles, 4 pts/m2, same flight as the DSM/DTM
   # Phase 5 (Fugro for SPEN, flown 2020-05-28 .. 2021-04-12) covers 100% of the AOI; see docs/data-verification.md
   catalogue_api: https://api.remotesensing.data.gov.scot
   collection_dsm: scotland-gov/lidar/phase-5/dsm
@@ -32,3 +38,14 @@ os:
 heights:
   default_height_m: 6.0         # used when a footprint has no valid LiDAR pixels or nDSM height < min_height_m
   min_height_m: 2.0
+
+analytics:
+  # LoD1 heights (built by `make lod1 MODE=aoi`) are the building universe; override with CLYDETWIN_HEIGHTS
+  heights: ../clydetwin/build/aoi/heights.gpkg
+  raw_dir: data/raw/analytics
+  out_dir: build/analytics
+  uprn_match_max_m: 2           # UPRN to footprint: inside, or nearest within this distance
+  flood_min_share: 0.10         # X3: a building is exposed only if >= this share of its footprint lies in the extent
+  storey_height_m: 3.0          # X1 storeys = height / this (documented heuristic)
+  noise_buffer_m: 10            # X6: max Lden over the footprint buffered by this (loudest-facade proxy)
+  lb_snap_m: 5                  # B6: listed-building entry points (1-10 m accuracy) count within this of a footprint

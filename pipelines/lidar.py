@@ -61,6 +61,16 @@ def download_tiles(cfg: dict, geom_27700, kinds=("dsm", "dtm")) -> list[Path]:
     return paths
 
 
+def download_laz(cfg: dict) -> list[Path]:
+    """Pilot-area Phase 5 LAZ tiles (1 km, ~40 MB each): resumable, size-checked, sha256 in SHA256SUMS."""
+    raw = config.resolve(cfg["lidar"]["raw_dir"]) / "laz"
+    area = box(*cfg["pilot"]["bbox"]).buffer(cfg["pilot"]["buffer_m"])
+    found = search(cfg["lidar"]["catalogue_api"], cfg["lidar"]["collection_laz"], area)
+    infos = [product_info(p) for p in found]
+    print(f"{len(infos)} LAZ tiles, {sum(i['size'] for i in infos) / 1e6:.0f} MB")
+    return [fetch(i["url"], raw / Path(i["url"]).name, i["size"]) for i in infos]
+
+
 def download_sample(cfg: dict) -> list[Path]:
     """Read only the sample bbox from the remote COG tiles (HTTP range requests, ~1 MB each)."""
     bbox = cfg["sample"]["bbox"]
@@ -99,10 +109,12 @@ def download_sample(cfg: dict) -> list[Path]:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("mode", choices=["sample", "aoi"])
+    ap.add_argument("mode", choices=["sample", "aoi", "laz"])
     mode = ap.parse_args().mode
     cfg = config.load()
-    if mode == "sample":
+    if mode == "laz":
+        download_laz(cfg)
+    elif mode == "sample":
         print(download_sample(cfg))
     else:
         aoi = gpd.read_file(config.resolve(cfg["aoi"]["path"])).geometry.iloc[0]

@@ -19,6 +19,9 @@ export const DEFAULT_CAMERA: CameraState = {
   pitch: -28,
 };
 
+/** /scenarios/flood: the Clyde through Glasgow Green and the Broomielaw, looking west along the river. */
+export const FLOOD_CAMERA: CameraState = { lon: -4.2290, lat: 55.8440, height: 1100, heading: 280, pitch: -35 };
+
 const KEYS = ["lon", "lat", "h", "hd", "p"] as const;
 
 const round = (v: number, d: number) => Number(v.toFixed(d));

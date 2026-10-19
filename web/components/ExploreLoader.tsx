@@ -3,6 +3,6 @@
 import dynamic from "next/dynamic";
 
 const Explore = dynamic(() => import("./Explore"), { ssr: false });
-export default function ExploreLoader() {
-  return <Explore />;
+export default function ExploreLoader({ scenario }: { scenario?: "flood" }) {
+  return <Explore scenario={scenario} />;
 }

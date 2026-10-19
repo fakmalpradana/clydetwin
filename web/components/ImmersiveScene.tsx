@@ -10,12 +10,13 @@ import { CesiumIonAuthPlugin, ImageOverlayPlugin, QuantizedMeshPlugin, XYZTilesO
 import { getBasemap, resolveTemplate, type BasemapId } from "@/lib/basemap";
 import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
+import { BufferAttribute, type DirectionalLight, Group, Matrix4, Mesh, type PerspectiveCamera, MeshStandardMaterial, Vector3, type Object3D } from "three";
 import { withCamera, type CameraState } from "@/lib/camera";
 import { stateToCamera, cameraToState } from "@/lib/three-camera";
 import { effectiveStatus, type StationFeature } from "@/lib/api";
 import { STATUS_COLOR } from "@/lib/status";
 import { MODE_COLOR, project, type Vehicle } from "@/lib/vehicles";
+import { filterIndex, LOD2_URL, loadPilotIds } from "@/lib/lod2";
 import { FLAT_GROUND_M, GEORGE_SQUARE, ION_TOKEN, TERRAIN_URL, TILESET_URL } from "@/lib/tileset";
 
 const ionArgs = {
@@ -46,6 +47,24 @@ const neutralize = (m: MeshStandardMaterial) => (e: { scene: Object3D }) =>
     }
   });
 const onBuildings = neutralize(material);
+
+type Metadata = { getPropertyTableData: (table: number, row: number) => { building_id?: string } };
+/** LoD1 handler: grey material, and drop the triangles of buildings that the LoD2 pilot replaces. */
+const onLod1 = (pilot: Set<string>) => (e: { scene: Object3D }) => {
+  onBuildings(e);
+  e.scene.traverse((o) => {
+    const mesh = o as Mesh;
+    const g = mesh.isMesh ? mesh.geometry : null;
+    const fid = g?.getAttribute("_feature_id_0");
+    const sm = (mesh.userData.structuralMetadata ?? e.scene.userData.structuralMetadata) as Metadata | undefined;
+    if (!g || !fid || !sm || !g.index) return;
+    const hidden = new Set<number>();
+    for (const id of new Set(Array.from(fid.array as ArrayLike<number>))) {
+      if (pilot.has(String(sm.getPropertyTableData(0, id).building_id))) hidden.add(id);
+    }
+    if (hidden.size) g.setIndex(new BufferAttribute(filterIndex(g.index.array, fid.array as ArrayLike<number>, hidden), 1));
+  });
+};
 // Terrain keeps the material the quantized-mesh loader created: ImageOverlayPlugin wraps it to drape the basemap,
 // and swapping in a shared material would drop that.
 const onTerrain = (e: { scene: Object3D }) =>
@@ -296,6 +315,12 @@ export default function ImmersiveScene({
     [],
   );
   const hasIon = ION_TOKEN.length > 0;
+  // LoD1 waits for the pilot id list so its tiles are never drawn without the hole.
+  const [pilot, setPilot] = useState<Set<string> | null | "failed">(null);
+  useEffect(() => {
+    loadPilotIds().then(setPilot, (e) => { console.warn("LoD2 pilot unavailable", e); setPilot("failed"); });
+  }, []);
+  const lod1Handler = useMemo(() => (pilot && pilot !== "failed" ? onLod1(pilot) : onBuildings), [pilot]);
   return (
     <Canvas
       shadows="percentage"
@@ -318,11 +343,18 @@ export default function ImmersiveScene({
           />
         </ShadowFollow>
         <group ref={setWorld}>
-          <TilesRenderer url={TILESET_URL} onLoadModel={onBuildings}>
-            {/* the sample/prod tileset is 3D Tiles 1.1 implicit; the plugin is not on by default */}
-            <TilesPlugin plugin={ImplicitTilingPlugin} />
-            {world && <GlobeControls scene={world} enableDamping />}
-          </TilesRenderer>
+          {pilot && (
+            <TilesRenderer key={pilot === "failed" ? "lod1" : "lod1-hole"} url={TILESET_URL} onLoadModel={lod1Handler}>
+              {/* the sample/prod tileset is 3D Tiles 1.1 implicit; the plugin is not on by default */}
+              <TilesPlugin plugin={ImplicitTilingPlugin} />
+              {world && <GlobeControls scene={world} enableDamping />}
+            </TilesRenderer>
+          )}
+          {pilot && pilot !== "failed" && (
+            <TilesRenderer url={LOD2_URL} onLoadModel={onBuildings}>
+              <TilesPlugin plugin={ImplicitTilingPlugin} />
+            </TilesRenderer>
+          )}
           {TERRAIN_URL ? (
             // Our own quantized-mesh terrain (no ion auth). Outside its extent there is simply no ground.
             <TilesRenderer ref={ownTerrainRef} key="own-terrain" url={TERRAIN_URL} onLoadModel={onTerrain} />

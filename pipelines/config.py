@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Pipeline configuration: loads pipelines/config.yaml and resolves repo-relative paths."""
 
+import os
 from pathlib import Path
 
 import yaml
@@ -52,3 +53,14 @@ def log(msg: str) -> None:
     from datetime import datetime
 
     print(f"[{datetime.now():%H:%M:%S}] {msg}", flush=True)
+
+
+def analytics_out(cfg: dict) -> Path:
+    d = resolve(cfg["analytics"]["out_dir"])
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def analytics_heights(cfg: dict) -> Path:
+    """LoD1 building universe: heights.gpkg of the finished `make lod1 MODE=aoi` run (may live in another worktree)."""
+    return (ROOT / os.environ.get("CLYDETWIN_HEIGHTS", cfg["analytics"]["heights"])).resolve()

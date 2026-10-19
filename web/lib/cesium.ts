@@ -4,10 +4,11 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import type { CameraState } from "./camera";
 import { DEFAULT_BASEMAP, getBasemap, resolveTemplate, type BasemapId } from "./basemap";
+import { DATAZONES_URL, isUnreliable, zoneColor, type ZoneMode, type ZoneProps } from "./zones";
+import { hideExpression, LOD2_URL } from "./lod2";
+import { styleConditions, type ThemeId } from "./themes";
 import {
-  DEFAULT_HEIGHT_COLOR,
   FLAT_GROUND_M,
-  HEIGHT_RAMP,
   ION_TOKEN,
   TERRAIN_URL,
   TILESET_URL,
@@ -119,16 +120,12 @@ export async function createViewer(
   return { viewer, terrain, realTerrain };
 }
 
-/** Viridis-by-height style; height_source=default buildings neutral. */
-export function buildingStyle() {
-  const conditions: [string, string][] = [
-    ["${height_source} === 'default'", `color('${DEFAULT_HEIGHT_COLOR}')`],
-    ...HEIGHT_RAMP.slice(0, -1).map(
-      ([max, col]) => [`\${height} < ${max}`, `color('${col}')`] as [string, string],
-    ),
-    ["true", `color('${HEIGHT_RAMP[HEIGHT_RAMP.length - 1][1]}')`],
-  ];
-  return new Cesium.Cesium3DTileStyle({ color: { conditions } });
+/** Style for a theme (height = viridis by height). Sentinel values are neutral grey, see lib/themes.ts. */
+export function buildingStyle(theme: ThemeId = "height", hideIds?: Iterable<string>) {
+  return new Cesium.Cesium3DTileStyle({
+    color: { conditions: styleConditions(theme) },
+    ...(hideIds ? { show: hideExpression(hideIds) } : {}),
+  });
 }
 
 export async function loadBuildings(viewer: Cesium.Viewer) {
@@ -138,6 +135,37 @@ export async function loadBuildings(viewer: Cesium.Viewer) {
   tileset.style = buildingStyle();
   viewer.scene.primitives.add(tileset);
   return tileset;
+}
+
+/** LoD2 pilot tileset (height theme only: it carries no analytics attributes). */
+export async function loadLod2(viewer: Cesium.Viewer) {
+  const tileset = await Cesium.Cesium3DTileset.fromUrl(LOD2_URL, { maximumScreenSpaceError: 8 });
+  tileset.style = buildingStyle("height");
+  viewer.scene.primitives.add(tileset);
+  return tileset;
+}
+
+/**
+ * Data Zone choropleth as ground-clamped polygons. Zones whose SIMD rests on a mixed 2011 to 2022 lookup
+ * (lib/zones.ts isUnreliable) are striped and fainter. The entities carry their properties for click-to-inspect.
+ */
+export async function loadZones(mode: ZoneMode) {
+  const ds = await Cesium.GeoJsonDataSource.load(DATAZONES_URL, { clampToGround: true, stroke: Cesium.Color.WHITE.withAlpha(0.35), strokeWidth: 1 });
+  restyleZones(ds, mode);
+  return ds;
+}
+
+export function restyleZones(ds: Cesium.GeoJsonDataSource, mode: ZoneMode) {
+  const now = Cesium.JulianDate.now();
+  for (const e of ds.entities.values) {
+    const p = e.properties?.getValue(now) as ZoneProps | undefined;
+    if (!e.polygon || !p) continue;
+    const c = Cesium.Color.fromCssColorString(zoneColor(mode, p));
+    e.polygon.material =
+      mode === "simd" && isUnreliable(p)
+        ? new Cesium.StripeMaterialProperty({ evenColor: c.withAlpha(0.7), oddColor: c.withAlpha(0.12), repeat: 24, orientation: Cesium.StripeOrientation.VERTICAL })
+        : new Cesium.ColorMaterialProperty(c.withAlpha(0.6));
+  }
 }
 
 export const setCamera = (viewer: Cesium.Viewer, c: CameraState) =>
