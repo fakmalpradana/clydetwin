@@ -1,0 +1,61 @@
+{
+ "weather": {
+  "temp_c": 11.68,
+  "wind_ms": 4.6,
+  "precip_mm": 0.1,
+  "cloud_low": 35,
+  "cloud_mid": 20,
+  "cloud_high": 60,
+  "t": "2026-01-01T12:00:00Z"
+ },
+ "rivers": [
+  {
+   "id": "sepa:fx-clyde-daldowie",
+   "name": "River Clyde at Daldowie",
+   "value": 1.18,
+   "unit": "m",
+   "status": "normal",
+   "t": "2026-01-01T12:00:00Z"
+  },
+  {
+   "id": "sepa:fx-clyde-weir",
+   "name": "River Clyde at Glasgow Weir",
+   "value": 2.39,
+   "unit": "m",
+   "status": "high",
+   "t": "2026-01-01T12:00:00Z"
+  },
+  {
+   "id": "sepa:fx-kelvin-killermont",
+   "name": "River Kelvin at Killermont",
+   "value": 0.69,
+   "unit": "m",
+   "status": "normal",
+   "t": "2026-01-01T12:00:00Z"
+  },
+  {
+   "id": "sepa:fx-whitecart-cathcart",
+   "name": "White Cart Water at Cathcart",
+   "value": 0.56,
+   "unit": "m",
+   "status": "normal",
+   "t": "2026-01-01T12:00:00Z"
+  }
+ ],
+ "air": [
+  {
+   "id": "aq:fx-glasgow-kerbside",
+   "name": "Glasgow Kerbside",
+   "pm25": 9.51,
+   "no2": 38,
+   "t": "2026-01-01T12:00:00Z"
+  },
+  {
+   "id": "aq:fx-glasgow-townhead",
+   "name": "Glasgow Townhead",
+   "pm25": 6.58,
+   "no2": 29,
+   "t": "2026-01-01T12:00:00Z"
+  }
+ ]
+}

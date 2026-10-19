@@ -1,0 +1,4 @@
+# TLS is automatic (Let's Encrypt) for a public DOMAIN such as 203-0-113-7.sslip.io
+{$DOMAIN} {
+	reverse_proxy api:8000
+}

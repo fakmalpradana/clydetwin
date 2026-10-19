@@ -18,6 +18,7 @@ Contains public sector information licensed under the Open Government Licence v3
 LiDAR: Crown copyright Scottish Government, SEPA and Scottish Water (2012); Scottish Government and Fugro; Scottish Government / Bluesky.
 © SEPA [year]. Contains Historic Environment Scotland data © HES.
 Weather data by Open-Meteo.com (CC BY 4.0), source: UK Met Office.
+Air quality: Contains public sector information licensed under the Open Government Licence v3.0, via UK-AIR (Defra) and the Scottish Air Quality Database. Licence wording to be confirmed with Defra: see ADR-007.
 ```
 
 ## Licensing rules for public tiles

@@ -9,11 +9,14 @@ import { parseBasemap, type BasemapId } from "@/lib/basemap";
 import Attribution from "./Attribution";
 import BasemapPicker from "./BasemapPicker";
 import { sceneTime } from "@/lib/time";
+import { useConditions } from "@/lib/useConditions";
+import Ticker from "./Ticker";
 
 const Scene = dynamic(() => import("./ImmersiveScene"), { ssr: false });
 
 export default function Immersive() {
   const router = useRouter();
+  const { stations, now: nowData, tick } = useConditions();
   const [state, setState] = useState<{ initial: CameraState; date: Date } | null>(null);
   const [bm, setBm] = useState<BasemapId>("esri");
   const [illustrative, setIllustrative] = useState(false);
@@ -53,7 +56,7 @@ export default function Immersive() {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       {state ? (
-        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} />
+        <Scene initial={state.initial} date={state.date} basemap={bm} latestRef={latest as React.MutableRefObject<CameraState>} stations={stations} tick={tick} />
       ) : (
         <p className="grid h-full place-items-center text-sm text-muted">Checking your graphics hardware&hellip;</p>
       )}
@@ -84,7 +87,8 @@ export default function Immersive() {
           Sun: illustrative (it is night in Glasgow)
         </p>
       )}
-      <Attribution id={bm} cam={cam} className="absolute bottom-8 right-2 z-10 max-w-[60%]" />
+      <div className="absolute bottom-7 left-0 right-0 h-8"><Ticker now={nowData} tick={tick} /></div>
+      <Attribution id={bm} cam={cam} className="absolute bottom-16 right-2 z-10 max-w-[60%]" />
       <footer className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-bg/60 px-4 py-1.5 text-[11px] text-muted backdrop-blur">
         Contains OS data &copy; Crown copyright and database right. OGL v3.0. LiDAR: Scottish Government and Fugro.{" "}
         <Link href="/about/data" className="pointer-events-auto underline">Data and licences</Link>

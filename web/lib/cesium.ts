@@ -29,11 +29,23 @@ export async function basemapLayer(id: BasemapId) {
   );
 }
 
+/**
+ * SEPA flood maps (OGL v3, (c) SEPA): river high + medium likelihood and coastal medium likelihood.
+ * Public ArcGIS MapServer; layers draw only below ~1:85,000, so zoom in to see them.
+ */
+export const FLOOD_URL = "https://map.sepa.org.uk/server/rest/services/Open/Flood_Maps/MapServer";
+export async function floodLayer() {
+  const provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(FLOOD_URL, { layers: "show:0,1,7", enablePickFeatures: false });
+  const layer = new Cesium.ImageryLayer(provider, { alpha: 0.6 });
+  return layer;
+}
+
 /** Swap the single basemap layer under the buildings. */
 export async function setBasemap(viewer: Cesium.Viewer, id: BasemapId) {
   const layer = await basemapLayer(id);
-  viewer.imageryLayers.removeAll();
-  viewer.imageryLayers.add(layer);
+  // Layer 0 is always the basemap; overlays (flood zones) sit above it.
+  if (viewer.imageryLayers.length) viewer.imageryLayers.remove(viewer.imageryLayers.get(0));
+  viewer.imageryLayers.add(layer, 0);
 }
 
 /** Constant-height terrain, so buildings with ellipsoidal bases sit on the map when ion terrain is unavailable. */

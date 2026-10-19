@@ -20,3 +20,11 @@ Locally the script falls back to `R2_DEFAULT_ENDPOINTS` from `.env`. Data licenc
 
 Glasgow SCOOT traffic counts are not archived yet: the Glasgow developer portal key is not available. It will be added
 as a third source with the same object layout once the key exists.
+
+## Live DB (Phase 2)
+
+`make backfill` (`collectors/backfill.py`) loads these `raw/` objects into the live TimescaleDB; re-running inserts
+nothing new. Archived Open-Meteo wind is km/h and is converted to m/s on import; forecast hours are skipped. SEPA
+records are imported only for series already in `ref.stations` (the archive has no coordinates).
+The collectors container also writes `dump/observations/YYYY/MM/DD.ndjson.gz` (previous UTC day, rows of
+`ts.observations`) to the same bucket once a day when `R2_*` is set, so the VM history is never only on the VM.

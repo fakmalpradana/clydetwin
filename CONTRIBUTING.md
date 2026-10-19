@@ -20,3 +20,14 @@ make lod1            # MODE=sample: one 1 km tile, a few minutes, ~100 MB of dow
 make serve-tiles     # http://localhost:8081/lod1/tileset.json
 make lod1 MODE=aoi   # all Glasgow City (13.4 GB LiDAR download)
 ```
+
+## Live stack (Phase 2)
+
+```
+make live-up        # TimescaleDB (127.0.0.1:5434) + API (:8000) + collectors; needs LIVE_DB_PASSWORD in .env
+make soak-report    # ingest gaps over the last 72 h (HOURS=24 for a shorter window)
+make backfill       # import the R2 raw/ archive
+uv run pytest       # API and collector tests need the live DB up (they use a throw-away clydetwin_test database)
+```
+
+See `deploy/README.md`. SEPA KiWIS is rate limited per IP: never loop requests against it; develop with fixtures.
