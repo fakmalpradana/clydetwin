@@ -63,6 +63,11 @@ services:
     depends_on:
       - api
 
+networks:
+  default:
+    # adsb.lol rate-limits the VM's IPv4 (429) but serves its IPv6; Docker 27+ picks a ULA subnet and NATs it
+    enable_ipv6: true
+
 volumes:
   tsdata:
   caddy_data:
