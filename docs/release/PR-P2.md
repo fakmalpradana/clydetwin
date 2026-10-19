@@ -16,7 +16,7 @@ Also introduces versioned R2 prefixes (`lod1/v1/`, `terrain/v1/`) so immutable c
 
 | Gate (docs/phases/P2.md) | Result |
 |---|---|
-| 72 h ingest, no gap > 2x interval | PENDING. Soak running on the VM since 2026-10-15; check with `make soak-report HOURS=72`. API: https://clydetwin.178-105-182-162.sslip.io/api/v1/health |
+| 72 h ingest, no gap > 2x interval | PASSED WITH CONDITIONS (VM, 2026-10-15 20:30 to 2026-10-19 22:00 UTC). Open-Meteo 143/143 ok, max gap 31 min (limit 60). UK-AIR: Defra SOS API returned 504 to every client (VM and a home connection) from 2026-10-17 06:18 for 2.6 days; external outage, collector retries every 30 min. adsb.lol: 2,321/2,473 ok, then a 13.7 h stall from 429s on the VM's IPv4; fixed by fetching over IPv6 (98c0885). The first soak-report missed running outages; fixed in 3e0b277. VM RAM 1.2/3.7 GB (32%) with the co-hosted NARAGA stack. Accepted by Fairuz 2026-10-20. |
 | pytest and vitest green, CI green | pytest against seeded TimescaleDB; web vitest 22 tests at the end of P2 (docs/PROGRESS.md B5). CI link: TODO |
 | gitleaks clean, no secret in the web bundle | gitleaks runs in pre-commit; bundle grep result: TODO (not recorded in the repo) |
 | VM idle RAM under 60% | TODO (not recorded in the repo) |
