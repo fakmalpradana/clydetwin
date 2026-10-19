@@ -1,16 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """ClydeTwin live API (Phase 2 contract: docs/phases/P2.md). Run: uvicorn api.main:app (env DATABASE_URL)."""
 
+import asyncio
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import psycopg
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from psycopg.rows import dict_row
 
+from api import subway
 from collectors.common import SOURCES
 
 app = FastAPI(title="ClydeTwin live API", version="0.2.0")
@@ -183,3 +186,115 @@ def now_summary(conn: Conn):
                 }
             )
     return {"weather": weather, "rivers": rivers, "air": air}
+
+
+# ---- Phase 3: moving city (docs/phases/P3.md) ----
+
+TRACK_STEP_S = 30
+MAX_WINDOW = timedelta(hours=24)
+_loops: dict = {}  # static ref geometry, loaded on first use (empty until `python -m collectors.subway` ran)
+
+
+def subway_loops(conn) -> dict:
+    if not _loops:
+        _loops.update(subway.load_loops(conn))
+    return _loops
+
+
+FIX_MAX_AGE_S = 180  # an aircraft not heard from for 3 min is no longer shown
+
+
+def aircraft_features(conn, at: datetime) -> list[dict]:
+    rows = conn.execute(
+        """select distinct on (hex) hex, t, lon, lat, h_ellip_m, callsign, heading_deg, speed_ms
+           from ts.aircraft_positions where t <= %s and t > %s order by hex, t desc""",
+        (at, at - timedelta(seconds=FIX_MAX_AGE_S)),
+    ).fetchall()
+    return [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [r["lon"], r["lat"], r["h_ellip_m"]]},
+            "properties": {
+                "id": r["hex"],
+                "kind": "aircraft",
+                "label": r["callsign"] or r["hex"],
+                "mode": "live",
+                "heading_deg": r["heading_deg"],
+                "speed_ms": r["speed_ms"],
+                "t": iso(r["t"]),
+            },
+        }
+        for r in rows
+    ]
+
+
+def vehicle_features(conn, kind: str | None, at: datetime) -> list[dict]:
+    """Aircraft from ts.aircraft_positions (live); subway from the simulation at `at`."""
+    return (aircraft_features(conn, at) if kind in (None, "aircraft") else []) + (
+        subway.positions(subway_loops(conn), at) if kind in (None, "subway") else []
+    )
+
+
+Kind = Annotated[str | None, Query(pattern="^(aircraft|subway)$")]
+
+
+@app.get("/api/v1/vehicles")
+def vehicles(conn: Conn, kind: Kind = None, at: datetime | None = None):
+    """FeatureCollection of Points [lon, lat, h_ellipsoid_m]; `kind` omitted means all kinds."""
+    at = at or datetime.now(UTC)
+    return {"type": "FeatureCollection", "features": vehicle_features(conn, kind, at)}
+
+
+@app.get("/api/v1/tracks")
+def tracks(
+    conn: Conn,
+    kind: Annotated[str, Query(pattern="^(aircraft|subway)$")],
+    from_: Annotated[datetime, Query(alias="from")],
+    to: datetime,
+):
+    """{id: [[t, lon, lat, h], ...]} with `t` as ISO 8601 UTC. Window capped at 24 h. Subway is the simulation
+    sampled every 30 s (the same function as /vehicles); aircraft tracks are the stored fixes (about one a minute)."""
+    if not timedelta(0) < to - from_ <= MAX_WINDOW:
+        raise HTTPException(422, "window must be positive and at most 24 h")
+    out: dict[str, list] = {}
+    if kind == "aircraft":
+        for r in conn.execute(
+            """select hex, t, lon, lat, h_ellip_m from ts.aircraft_positions
+               where t >= %s and t <= %s order by hex, t""",
+            (from_, to),
+        ):
+            out.setdefault(r["hex"], []).append([iso(r["t"]), r["lon"], r["lat"], r["h_ellip_m"]])
+    else:
+        loops = subway_loops(conn)
+        t = from_
+        while t <= to:
+            for f in subway.positions(loops, t):
+                out.setdefault(f["properties"]["id"], []).append(
+                    [iso(t), *f["geometry"]["coordinates"]]
+                )
+            t += timedelta(seconds=TRACK_STEP_S)
+    return out
+
+
+@app.get("/api/v1/stream/vehicles")
+async def stream_vehicles(
+    request: Request, every: Annotated[float, Query(ge=0.1, le=60)] = 5, limit: int | None = None
+):
+    """SSE: a `vehicles` event every `every` s (5-10 s in production), both kinds in one FeatureCollection, same
+    payload as /vehicles. `limit` (optional) ends the stream after that many events, for tests and curl."""
+
+    async def gen():
+        n = 0
+        while not await request.is_disconnected() and (limit is None or n < limit):
+            with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as conn:
+                fc = {
+                    "type": "FeatureCollection",
+                    "features": vehicle_features(conn, None, datetime.now(UTC)),
+                }
+            yield f"event: vehicles\ndata: {json.dumps(fc, separators=(',', ':'))}\n\n"
+            n += 1
+            await asyncio.sleep(every)
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+    )

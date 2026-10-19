@@ -4,7 +4,8 @@
 Every run writes one gzipped NDJSON object per source to R2:
     raw/{source}/{YYYY}/{MM}/{DD}/{HHMM}.ndjson.gz
 Sources: `sepa_kiwis` (15-min river level and rainfall, stations inside the Glasgow AOI bbox) and
-`open_meteo_ukmo` (hourly UKMO forecast/analysis on a 3x3 grid over the AOI). Overlapping windows are
+`open_meteo_ukmo` (hourly UKMO forecast/analysis on a 3x3 grid over the AOI) and `uk_air` (hourly PM2.5/NO2,
+Glasgow sites, reusing collectors.air_quality). Overlapping windows are
 intentional (a missed run loses nothing); deduplicate on (ts_id, timestamp) / (point, time) when reading.
 
 Usage: python -m collectors.archive [--dry-run] [--refresh-stations]
@@ -204,6 +205,25 @@ def collect_open_meteo() -> list[dict]:
     return parse_open_meteo(r.json(), pts)
 
 
+# ---------------------------------------------------------------- UK-AIR
+
+
+def collect_uk_air() -> list[dict]:
+    """Hourly PM2.5 / NO2 for Glasgow sites (last 12 h; windows overlap). One record per site, pollutant, hour."""
+    from collectors import air_quality
+
+    return [
+        {k: s[k] for k in ("ts_id", "site", "param", "unit", "lat", "lon")}
+        | {
+            "timestamp": datetime.fromtimestamp(v["timestamp"] / 1000, UTC).isoformat(),
+            "value": v["value"],
+        }
+        for s, p in air_quality.fetch()
+        for v in p["values"]
+        if v["value"] is not None
+    ]
+
+
 # ---------------------------------------------------------------- R2
 
 
@@ -249,7 +269,7 @@ def main(argv=None) -> int:
     )
     ap.add_argument(
         "--sources",
-        default=os.environ.get("ARCHIVE_SOURCES", "sepa_kiwis,open_meteo_ukmo"),
+        default=os.environ.get("ARCHIVE_SOURCES", "sepa_kiwis,open_meteo_ukmo,uk_air"),
         help="comma-separated sources to archive (env ARCHIVE_SOURCES)",
     )
     a = ap.parse_args(argv)
@@ -261,7 +281,11 @@ def main(argv=None) -> int:
     now = now.replace(minute=now.minute - now.minute % 15)
     failed = 0
     s3 = None if a.dry_run else s3_client()
-    collectors = {"sepa_kiwis": collect_sepa, "open_meteo_ukmo": collect_open_meteo}
+    collectors = {
+        "sepa_kiwis": collect_sepa,
+        "open_meteo_ukmo": collect_open_meteo,
+        "uk_air": collect_uk_air,
+    }
     for source in a.sources.split(","):
         fn = collectors[source]
         try:

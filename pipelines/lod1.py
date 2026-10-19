@@ -26,8 +26,9 @@ def run(mode: str) -> dict:
     raster_dir = bdir / "raster"
     fp_zip = config.resolve(cfg["os"]["raw_dir"])
     if not config.fresh(
-        fp_path, *fp_zip.glob("opmplc_*.zip"), config.ROOT / "pipelines" / "footprints.py"
-    ):
+        fp_path, *fp_zip.glob("opmplc_*.zip"), config.ROOT / "pipelines" / "footprints.py",
+        config.resolve(cfg["aoi"]["path"]),
+    ):  # fmt: skip
         footprints.build(mode, cfg)
     n_fp = len(gpd.read_file(fp_path, columns=[]))
     log(f"footprints: {n_fp}")

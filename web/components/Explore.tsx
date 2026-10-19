@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { carry, cameraQuery, paramsToCamera, setParam, withCamera, type CameraState } from "@/lib/camera";
 import { sceneDate } from "@/lib/time";
 import { FIXTURE, ageLabel, effectiveStatus, getTimeseries, type Timeseries } from "@/lib/api";
@@ -9,6 +9,7 @@ import { STATUS_COLOR } from "@/lib/status";
 import { useConditions } from "@/lib/useConditions";
 import Sparkline from "./Sparkline";
 import Ticker from "./Ticker";
+import { useMobility } from "./useMobility";
 import WeatherWidget from "./WeatherWidget";
 import { parseBasemap, type BasemapId } from "@/lib/basemap";
 import Attribution from "./Attribution";
@@ -51,6 +52,7 @@ export default function Explore() {
   const [ion, setIon] = useState(false);
   const [lowGpu, setLowGpu] = useState(false);
   const [bm, setBm] = useState<BasemapId>("dark");
+  const mobility = useMobility(useCallback(() => api.current, []), ready);
 
   useEffect(() => {
     let disposed = false;
@@ -207,6 +209,7 @@ export default function Explore() {
         <p className="mt-2 flex items-center gap-2 text-[11px] text-muted">
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: DEFAULT_HEIGHT_COLOR }} /> No LiDAR height (6 m default)
         </p>
+        {mobility.controls}
         <WeatherWidget now={nowData} />
         <p className="mt-2 text-[10px] text-muted">Sun: Glasgow, {glasgowTime(sceneDate(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)))}</p>
       </aside>
@@ -225,6 +228,8 @@ export default function Explore() {
           {gauge.series && <Sparkline points={gauge.series.points} unit={gauge.f.properties.unit} label={gauge.f.properties.name} color={STATUS_COLOR[effectiveStatus(gauge.f.properties, tick)]} />}
         </section>
       )}
+
+      {mobility.panel}
 
       {selected && (
         <section className="absolute z-20 bottom-0 left-0 right-0 max-h-[55dvh] overflow-auto border-t border-line bg-panel/95 p-4 backdrop-blur sm:bottom-auto sm:left-auto sm:right-4 sm:top-16 sm:w-80 sm:rounded-lg sm:border">

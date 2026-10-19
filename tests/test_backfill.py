@@ -85,3 +85,22 @@ def test_backfill_then_dump_roundtrip(conn):
     lines = gzip.decompress(sent["Body"]).decode().splitlines()
     assert len(lines) == 6 and json.loads(lines[0])["station_id"] == "meteo:r0c0"
     assert dump.dump_day(conn, s3, "b", date(2026, 10, 2)) == 0  # nothing that day: no object
+
+
+def test_uk_air_archive_roundtrip(conn):
+    rec = {
+        "ts_id": "1",
+        "site": "Glasgow Test",
+        "param": "pm25",
+        "unit": "µg/m³",
+        "lat": 55.86,
+        "lon": -4.25,
+        "timestamp": "2026-10-01T10:00:00+00:00",
+        "value": 7.5,
+    }
+    s3 = FakeS3(
+        {"raw/uk_air/2026/10/01/1015.ndjson.gz": gzip.compress((json.dumps(rec) + "\n").encode())}
+    )
+    assert backfill.backfill(conn, s3, "b")["inserted"] == 1
+    assert backfill.backfill(conn, s3, "b")["inserted"] == 0
+    assert conn.execute("select name from ref.stations where id = 'aq:glasgow-test'").fetchone()

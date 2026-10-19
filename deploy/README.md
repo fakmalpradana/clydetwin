@@ -45,7 +45,7 @@ Set in `.env` (never commit it):
 | `LIVE_DB_PASSWORD` | a long random password (`openssl rand -hex 24`); `DATABASE_URL` only matters for host tools |
 | `DOMAIN` | `203-0-113-7.sslip.io` (your IP with dashes) or your domain |
 | `CORS_ORIGINS`, `CORS_ORIGIN_REGEX` | defaults already allow localhost:3000, clydetwin.vercel.app and *.vercel.app |
-| `LIVE_SOURCES` | `open-meteo,uk-air` now; add `,sepa` only after SEPA grants KiWIS access |
+| `LIVE_SOURCES` | `open-meteo,uk-air` now; add `,sepa` only after SEPA grants KiWIS access; add `,adsb` for aircraft (ADR-008; `AIRCRAFT_INTERVAL_S` >= 60) |
 | `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_DEFAULT_ENDPOINTS` | same as local; enables the daily dump and `make backfill` |
 | `HC_PING_OPEN_METEO`, `HC_PING_UK_AIR`, `HC_PING_SEPA` | Healthchecks.io ping URLs (optional) |
 

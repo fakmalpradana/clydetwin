@@ -10,7 +10,7 @@ import json
 import os
 from datetime import UTC, datetime
 
-from collectors import weather
+from collectors import air_quality, weather
 from collectors.archive import grid_points, s3_client
 from collectors.common import Obs, connect, upsert
 
@@ -50,12 +50,26 @@ def sepa_obs(records: list[dict], known: set[str]) -> list[Obs]:
     ]
 
 
+def uk_air_rows(records: list[dict]):
+    """Archive records carry site, coordinates and unit, so stations can be (re)created too."""
+    obs = [
+        Obs(
+            station_id=air_quality.station_id(r["site"]),
+            param=r["param"],
+            t=r["timestamp"],
+            value=r["value"],
+        )
+        for r in records
+    ]
+    return air_quality.stations_from(records), obs
+
+
 def backfill(conn, s3, bucket: str, since: str = "") -> dict:
     upsert(conn, weather.stations(), [])
     known = {r[0] for r in conn.execute("select id from ref.stations")}
     conn.commit()
     stats = {"objects": 0, "inserted": 0}
-    for source in ("open_meteo_ukmo", "sepa_kiwis"):
+    for source in ("open_meteo_ukmo", "sepa_kiwis", "uk_air"):
         for page in s3.get_paginator("list_objects_v2").paginate(
             Bucket=bucket, Prefix=f"raw/{source}/"
         ):
@@ -65,8 +79,14 @@ def backfill(conn, s3, bucket: str, since: str = "") -> dict:
                     continue
                 body = gzip.decompress(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
                 recs = [json.loads(line) for line in body.splitlines()]
-                obs = om_obs(recs) if source == "open_meteo_ukmo" else sepa_obs(recs, known)
-                stats["inserted"] += upsert(conn, [], obs)
+                sts = []
+                if source == "open_meteo_ukmo":
+                    obs = om_obs(recs)
+                elif source == "uk_air":
+                    sts, obs = uk_air_rows(recs)
+                else:
+                    obs = sepa_obs(recs, known)
+                stats["inserted"] += upsert(conn, sts, obs)
                 conn.commit()
                 stats["objects"] += 1
     return stats

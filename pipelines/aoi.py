@@ -2,6 +2,8 @@
 """Task 1.3: area of interest = authority boundary (OS Boundary-Line, OGL) + buffer, -> data/aoi.gpkg."""
 
 import geopandas as gpd
+from shapely.geometry import box
+from shapely.ops import unary_union
 
 from . import config, os_data
 
@@ -13,7 +15,8 @@ def build(cfg: dict) -> gpd.GeoDataFrame:
     )
     if len(units) != 1:
         raise LookupError(f"expected exactly one '{cfg['aoi']['authority']}', got {len(units)}")
-    geom = units.geometry.iloc[0].buffer(cfg["aoi"]["buffer_m"])
+    extra = [box(*e["bbox"]) for e in cfg["aoi"].get("extra", [])]
+    geom = unary_union([units.geometry.iloc[0].buffer(cfg["aoi"]["buffer_m"]), *extra])
     aoi = gpd.GeoDataFrame(
         {"authority": [cfg["aoi"]["authority"]], "buffer_m": [cfg["aoi"]["buffer_m"]]},
         geometry=[geom],

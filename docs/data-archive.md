@@ -9,6 +9,9 @@ Each run writes one gzipped NDJSON object per source to R2:
 |---|---|---|
 | `sepa_kiwis` | SEPA KiWIS 15-minute river level and rainfall for stations inside the Glasgow AOI bbox (`collectors/sepa_stations.json`, regenerated with `--refresh-stations`) | last 2 h |
 | `open_meteo_ukmo` | Open-Meteo `ukmo_seamless` hourly: temperature, precipitation, cloud cover low/mid/high, wind, on a 3x3 grid over the AOI bbox | 3 h back, 3 h ahead |
+| `uk_air` | UK-AIR (Defra) hourly PM2.5 and NO2 for the Glasgow sites, via `collectors.air_quality` (site, coordinates, unit on each record) | last 12 h |
+
+Default in the workflow is `open_meteo_ukmo,uk_air` (SEPA stays off until access is sorted). `make backfill` loads `uk_air` too, so the P2 72 h soak can be proven from this 24/7 archive without laptop uptime.
 
 Windows overlap on purpose so a missed run loses nothing; deduplicate on `(ts_id, timestamp)` or `(lat, lon, time)`
 when reading. Every record carries `fetched_at`. A failing source does not stop the other; the run exits non-zero so

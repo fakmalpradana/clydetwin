@@ -88,13 +88,15 @@ def parse(payload: dict, s: dict) -> list[Obs]:
     ]
 
 
-def collect(hours: int = 12):
-    found = series()
+def fetch(hours: int = 12) -> list[tuple[dict, dict]]:
+    """(series, getData payload) for every Glasgow series; shared with the R2 archive."""
     end = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    obs = []
-    for s in found:
-        payload = get_json(
-            f"{API}/timeseries/{s['ts_id']}/getData", {"timespan": f"PT{hours}H/{end}"}
-        )
-        obs += parse(payload, s)
-    return stations_from(found), obs
+    return [
+        (s, get_json(f"{API}/timeseries/{s['ts_id']}/getData", {"timespan": f"PT{hours}H/{end}"}))
+        for s in series()
+    ]
+
+
+def collect(hours: int = 12):
+    got = fetch(hours)
+    return stations_from([s for s, _ in got]), [o for s, p in got for o in parse(p, s)]
